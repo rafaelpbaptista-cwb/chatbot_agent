@@ -1,6 +1,13 @@
 """Script main para validar o ambiente."""
 
 import logging
+import os
+
+from dotenv import load_dotenv
+from langchain_core.output_parsers import StrOutputParser
+from langchain_google_genai import ChatGoogleGenerativeAI
+
+load_dotenv()
 
 logging.basicConfig(
     level=logging.INFO,
@@ -11,7 +18,10 @@ logger = logging.getLogger(__name__)
 
 def main() -> None:
     """Prints a message indicating the script is running."""
-    logger.info("Hello from langchain!")
+    logger.info("Modelo LLM: %s", os.getenv("MODEL_LLM"))
+
+    chain = ChatGoogleGenerativeAI(model=os.getenv("MODEL_LLM")) | StrOutputParser()
+    logger.info("Hello World!\nResponse: %s", chain.invoke("Hello World!"))
 
 
 if __name__ == "__main__":
