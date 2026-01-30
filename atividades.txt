@@ -1,0 +1,5 @@
+1 - Criar o banco de dados vetorial
+2 - Criar um LangGraph básico chamando o LLM
+3 - Adicionar etapa de recuperação RAG
+4 - Avaliar a qualidade dos itens recuperados via RAG
+5 - Alterar o fluxo LangGraph para usar o RAG antes de invocar o LLM
