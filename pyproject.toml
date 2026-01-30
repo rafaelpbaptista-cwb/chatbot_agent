@@ -1,0 +1,54 @@
+[project]
+name = "langchain"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "pre-commit>=4.5.1",
+    "ruff>=0.14.14",
+]
+
+[tool.ruff]
+# Exclude a variety of commonly ignored directories.
+exclude = [
+    ".bzr",
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".git-rewrite",
+    ".hg",
+    ".ipynb_checkpoints",
+    ".mypy_cache",
+    ".nox",
+    ".pants.d",
+    ".pyenv",
+    ".pytest_cache",
+    ".pytype",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    ".venv",
+    ".vscode",
+    "__pypackages__",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+    "node_modules",
+    "site-packages",
+    "venv",
+]
+
+[tool.ruff.lint]
+select = ["ALL"]
+
+ignore = [
+    "D203",   # one-blank-line-before-class (conflita com D211)
+    "D213",   # multi-line-summary-second-line (conflita com D212)
+    "COM812", # missing-trailing-comma (conflita com o formatador)
+    "ISC001", # single-line-implicit-string-concatenation (conflita com o formatador)
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "numpy"
