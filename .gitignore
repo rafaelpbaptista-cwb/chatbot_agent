@@ -1,5 +1,6 @@
 # Minhas costomizações
-dados/python/*
+dados/**
+teste*.py
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
