@@ -485,6 +485,7 @@ dependencies = [
     { name = "langchain-text-splitters" },
     { name = "langgraph" },
     { name = "pre-commit" },
+    { name = "pytest" },
     { name = "python-dotenv" },
     { name = "ruff" },
 ]
@@ -499,6 +500,7 @@ requires-dist = [
     { name = "langchain-text-splitters", specifier = ">=1.1.0" },
     { name = "langgraph", specifier = ">=1.0.7" },
     { name = "pre-commit", specifier = ">=4.5.1" },
+    { name = "pytest", specifier = ">=8.4.2" },
     { name = "python-dotenv", specifier = ">=1.2.1" },
     { name = "ruff", specifier = ">=0.14.14" },
 ]

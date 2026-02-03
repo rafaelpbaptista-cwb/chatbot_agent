@@ -13,12 +13,22 @@ dependencies = [
     "langchain-text-splitters>=1.1.0",
     "langgraph>=1.0.7",
     "pre-commit>=4.5.1",
+    "pytest>=8.4.2",
     "python-dotenv>=1.2.1",
     "ruff>=0.14.14",
 ]
 
+[tool.pytest.ini_options]
+log_cli = true
+log_cli_level = "INFO"
+log_cli_format = "%(asctime)s [%(levelname)s] %(message)s"
+date_format = "%Y-%m-%d %H:%M:%S"
+
+
+
 [tool.ruff]
 line-length = 88
+exclude = ["test/**"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "numpy"
