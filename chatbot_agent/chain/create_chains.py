@@ -6,12 +6,13 @@ from dataclasses import dataclass, field
 from langchain_chroma import Chroma
 from langchain_core.documents import Document
 from langchain_core.prompts.structured import StructuredPrompt
+from langchain_core.runnables.base import RunnableSequence
 from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
 from langsmith import Client
 
 
 @dataclass
-class RagGrader:
+class RagGraderAnswer:
     prompt: StructuredPrompt = field(
         default_factory=lambda: Client().pull_prompt("rlm/rag-document-relevance")
     )
@@ -20,8 +21,24 @@ class RagGrader:
         default_factory=lambda: ChatGoogleGenerativeAI(model=os.getenv("LLM_MODEL"))
     )
 
-    def invoke(self, question: str, documents: list[Document]) -> str:
-        (self.llm | self.prompt).invoke({"question": question, "documents": documents[0].page_content})
+    chain: RunnableSequence = field(init=False)
+
+    def __post_init__(self) -> None:
+        self.chain = self.prompt | self.llm
+
+    def invoke(self, question: str, documents: list[Document]) -> list:
+        list_answers = []
+
+        for doc in documents:
+            list_answers(
+                RagGraderAnswer(
+                    **self.chain.invoke(
+                        {"input": {"documents": doc, "question": question}}
+                    )
+                )
+            )
+
+        return list_answers
 
 
 @dataclass
@@ -67,11 +84,12 @@ def create_retriever() -> Retriever:
     """
     return Retriever()
 
-def create_rag_grader() -> RagGrader:
+
+def create_rag_grader() -> RagGraderAnswer:
     """Cria um objeto para avaliação de RAG.
 
     Returns
     -------
     RagGrader: objeto para avaliação de RAG.
     """
-    return RagGrader()
+    return RagGraderAnswer()
