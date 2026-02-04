@@ -9,10 +9,16 @@ from langchain_core.prompts.structured import StructuredPrompt
 from langchain_core.runnables.base import RunnableSequence
 from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
 from langsmith import Client
+from pydantic import BaseModel, Field
+
+
+class RagGraderAnswer(BaseModel):
+    Score: int = Field(description="Relevance score between 0 and 1")
+    Explaination: str = Field(description="Explanation of relevance score")
 
 
 @dataclass
-class RagGraderAnswer:
+class RagGrader:
     prompt: StructuredPrompt = field(
         default_factory=lambda: Client().pull_prompt("rlm/rag-document-relevance")
     )
@@ -26,7 +32,7 @@ class RagGraderAnswer:
     def __post_init__(self) -> None:
         self.chain = self.prompt | self.llm
 
-    def invoke(self, question: str, documents: list[Document]) -> list:
+    def invoke(self, question: str, documents: list[Document]) -> list[RagGraderAnswer]:
         list_answers = []
 
         for doc in documents:
@@ -85,11 +91,11 @@ def create_retriever() -> Retriever:
     return Retriever()
 
 
-def create_rag_grader() -> RagGraderAnswer:
+def create_rag_grader() -> RagGrader:
     """Cria um objeto para avaliação de RAG.
 
     Returns
     -------
     RagGrader: objeto para avaliação de RAG.
     """
-    return RagGraderAnswer()
+    return RagGrader()
