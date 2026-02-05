@@ -13,12 +13,16 @@ from pydantic import BaseModel, Field
 
 
 class RagGraderAnswer(BaseModel):
+    """Classe estruturada usada para retornar resposta do RagGrader."""
+
     Score: int = Field(description="Relevance score between 0 and 1")
     Explaination: str = Field(description="Explanation of relevance score")
 
 
 @dataclass
 class RagGrader:
+    """Classe que avalia a qualidade dos RAGs obtidos."""
+
     prompt: StructuredPrompt = field(
         default_factory=lambda: Client().pull_prompt("rlm/rag-document-relevance")
     )
@@ -30,21 +34,36 @@ class RagGrader:
     chain: RunnableSequence = field(init=False)
 
     def __post_init__(self) -> None:
+        """Método interno do dataclass.
+
+        Inicializa propriedade após inicialização do
+        objeto.
+        """
         self.chain = self.prompt | self.llm
 
     def invoke(self, question: str, documents: list[Document]) -> list[RagGraderAnswer]:
-        list_answers = []
+        """
+        Método para avaliar a qualidade dos itens recuperados via RAG.
 
-        for doc in documents:
-            list_answers(
-                RagGraderAnswer(
-                    **self.chain.invoke(
-                        {"input": {"documents": doc, "question": question}}
-                    )
-                )
+        Parameters
+        ----------
+        question (str):
+            Questionamento do usuário
+
+        documents (list[Document]):
+            Lista de documentos recuperados
+
+        Returns
+        -------
+            list[RagGraderAnswer]: Lista de avaliações de qualidade dos itens
+            recuperados
+        """
+        return [
+            RagGraderAnswer(
+                **self.chain.invoke({"input": {"documents": doc, "question": question}})
             )
-
-        return list_answers
+            for doc in documents
+        ]
 
 
 @dataclass

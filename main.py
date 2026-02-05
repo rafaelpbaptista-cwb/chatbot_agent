@@ -18,7 +18,6 @@ logger = logging.getLogger(__name__)
 
 def main() -> None:
     """Prints a message indicating the script is running."""
-    
     logger.info("Modelo LLM: %s", os.getenv("LLM_MODEL"))
 
     chain = ChatGoogleGenerativeAI(model=os.getenv("LLM_MODEL")) | StrOutputParser()
