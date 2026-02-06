@@ -1,37 +1,36 @@
 """Script responsável por instanciar os LLMs/chains a serem utilizados na aplicação."""
 
 import os
+from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 
 from langchain_chroma import Chroma
 from langchain_core.documents import Document
+from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts.structured import StructuredPrompt
 from langchain_core.runnables.base import RunnableSequence
 from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
 from langsmith import Client
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
-
-class RagGraderAnswer(BaseModel):
-    """Classe estruturada usada para retornar resposta do RagGrader."""
-
-    Score: int = Field(description="Relevance score between 0 and 1")
-    Explaination: str = Field(description="Explanation of relevance score")
+from chatbot_agent.structured_output.models import RagGraderAnswer
 
 
 @dataclass
-class RagGrader:
-    """Classe que avalia a qualidade dos RAGs obtidos."""
+class BaseChain(ABC):
+    """Classe base para instanciar os LLMs/chains a serem utilizados na aplicação."""
 
-    prompt: StructuredPrompt = field(
-        default_factory=lambda: Client().pull_prompt("rlm/rag-document-relevance")
-    )
+    prompt: StructuredPrompt = field(init=False)
 
     llm: ChatGoogleGenerativeAI = field(
-        default_factory=lambda: ChatGoogleGenerativeAI(model=os.getenv("LLM_MODEL"))
+        default_factory=lambda: ChatGoogleGenerativeAI(
+            model=os.getenv("LLM_MODEL"), temperature=0
+        )
     )
 
     chain: RunnableSequence = field(init=False)
+
+    pull_prompt: str = field(default=None)
 
     def __post_init__(self) -> None:
         """Método interno do dataclass.
@@ -39,7 +38,34 @@ class RagGrader:
         Inicializa propriedade após inicialização do
         objeto.
         """
+        self.prompt = Client().pull_prompt(self.pull_prompt)
         self.chain = self.prompt | self.llm
+
+    @abstractmethod
+    def invoke(self, question: str, documents: list[Document]) -> list[BaseModel]:
+        """Definição do método para a execução de cada chain.
+
+        Comportamento dessa invocação deverá ser detalhada em cada classe filha.
+
+        Parameters
+        ----------
+        question (str):
+            Questionamento relevante para cada chain
+
+        documents (list[Document]):
+            Lista de documentos relevante para cada chain
+
+        Returns
+        -------
+            list[BaseModel]: Resposta definida em cada classe filha
+        """
+
+
+@dataclass
+class RagGrader(BaseChain):
+    """Classe que avalia a qualidade dos RAGs obtidos."""
+
+    pull_prompt: str = field(default="rlm/rag-document-relevance")
 
     def invoke(self, question: str, documents: list[Document]) -> list[RagGraderAnswer]:
         """
@@ -64,6 +90,40 @@ class RagGrader:
             )
             for doc in documents
         ]
+
+
+@dataclass
+class Generate(BaseChain):
+    """Classe responsável por responder aos questionamentos do usuário."""
+
+    pull_prompt: str = field(default="rlm/rag-prompt")
+
+    def __post_init__(self) -> None:
+        """Acrescenta o comportamento de formatar a resposta para o usuário."""
+        super().__post_init__()
+
+        self.chain = self.chain | StrOutputParser()
+
+    def invoke(self, question: str, documents: list[Document]) -> str:
+        """
+        Método para responder aos questionamentos do usuário.
+
+        Recebe uma pergunta e uma lista de documentos RAGs que ajudaram
+        no contexto para responder ao questionamento do usuário.
+
+        Parameters
+        ----------
+        question (str):
+            Questionamento do usuário
+
+        documents (list[Document]):
+            Lista de documentos recuperados
+
+        Returns
+        -------
+            str: Resposta ao questionamento do usuário.
+        """
+        return self.chain.invoke({"question": question, "context": documents})
 
 
 @dataclass
@@ -118,3 +178,13 @@ def create_rag_grader() -> RagGrader:
     RagGrader: objeto para avaliação de RAG.
     """
     return RagGrader()
+
+
+def create_generate() -> Generate:
+    """Cria um objeto para geração de respostas.
+
+    Returns
+    -------
+    Generate: objeto para geração de respostas.
+    """
+    return Generate()

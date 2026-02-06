@@ -1,0 +1,5 @@
+# noqa: W292
+from langgraph.graph import END, StateGraph
+
+workflow = StateGraph()
+workflow.add_node()
