@@ -1,0 +1,11 @@
+GOOGLE_API_KEY=<CHAVE>
+LANGSMITH_TRACING=true
+LANGSMITH_ENDPOINT=https://api.smith.langchain.com
+LANGSMITH_API_KEY=<CHAVE>
+LANGSMITH_PROJECT=<PROJETO>
+
+LLM_MODEL=gemini-2.5-flash-preview-09-2025
+EMBEDDING_MODEL=gemini-embedding-001
+
+DIR_DATABASE=C:/Ambiente_desenvolvimento/chatbot_agent/dados/database
+DIR_DATA_PYTHON=C:/Ambiente_desenvolvimento/chatbot_agent/dados/python

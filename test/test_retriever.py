@@ -2,13 +2,27 @@
 
 import logging
 
-from chatbot_agent import retriever, rag_grader
+import pytest
+
+from chatbot_agent import create_retriever, create_rag_grader
 from langchain_core.documents import Document
+
+from chatbot_agent.chain.create_chains import RagGrader, Retriever
 
 logger = logging.getLogger(__name__)
 
 
-def test_retriever() -> None:
+@pytest.fixture
+def retriever() -> Retriever:
+    return create_retriever()
+
+
+@pytest.fixture
+def rag_grader() -> RagGrader:
+    return create_rag_grader()
+
+
+def test_retriever(retriever: Retriever) -> None:
     """Testa se o invoke do Retriever retorna respostas quando chamado com uma pergunta."""
     respostas = retriever.invoke("Como se conectar na base de dados histórico oficial?")
 
@@ -19,7 +33,7 @@ def test_retriever() -> None:
     assert respostas
 
 
-def test_rag_grader() -> None:
+def test_rag_grader(rag_grader: RagGrader) -> None:
     """Testa se o invoke do RagGrader retorna respostas quando chamado com uma pergunta e contextos."""
     respostas = rag_grader.invoke(
         question="Como se conectar na base de dados histórico oficial?",
