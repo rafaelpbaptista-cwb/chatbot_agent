@@ -22,5 +22,6 @@ class GraphState(TypedDict):
     """Classe que representa o estado na nossa aplicação (Graph)."""
 
     question: str
+    response: str
     generation: str
     documents: list[str]

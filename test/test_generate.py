@@ -22,6 +22,9 @@ def test_generate(generate: Generate) -> None:
             Document(
                 page_content="from infra_copel import MongoHistoricoOficial\nmongo = MongoHistoricoOficial()"
             ),
+            Document(
+                page_content="mongo = MongoHistoricoOficial()"
+            ),
         ],
     )
 

@@ -2,11 +2,11 @@
 
 import logging
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
-from zipp import Path
 
 from chatbot_agent import (
     GENERATE,
@@ -30,7 +30,9 @@ def retrieve_node(state: GraphState) -> dict[str, Any]:
     logger.debug("")
     logger.debug("--- RETRIEVE ---")
 
-    return {"context": retriever.invoke(state.question), "question": state.question}
+    return {
+        "documents": retriever.invoke(state["question"]),
+    }
 
 
 def grade_documents_node(state: GraphState) -> dict[str, Any]:
@@ -50,13 +52,13 @@ def grade_documents_node(state: GraphState) -> dict[str, Any]:
     logger.debug("")
     logger.debug("--- GRADE CONTEXT ---")
 
-    list_valid_context = [
+    list_valid_documents = [
         answer.analized_document
-        for answer in rag_grader.invoke(state.question, state.documents)
+        for answer in rag_grader.invoke(state["question"], state["documents"])
         if answer.Score == 1
     ]
 
-    return {"context": list_valid_context, "question": state.question}
+    return {"documents": list_valid_documents}
 
 
 def generate_node(state: GraphState) -> dict[str, Any]:
@@ -73,7 +75,9 @@ def generate_node(state: GraphState) -> dict[str, Any]:
     logger.debug("")
     logger.debug("--- GENERATE ---")
 
-    return generate.invoke(state.question, state.documents)
+    response = generate.invoke(state["question"], state["documents"])
+
+    return {"response": response.content}
 
 
 @dataclass
@@ -118,3 +122,6 @@ class Application:
 
         with Path("graph.png").open("wb") as f:
             f.write(self.app.get_graph().draw_mermaid_png())
+
+    def invoke(self, question: str) -> str:
+        return self.app.invoke(input={"question": question})["response"]

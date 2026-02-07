@@ -90,7 +90,10 @@ class DocumentsGrader(BaseChain):
         """
         return [
             DocumentsGraderAnswer(
-                **self.chain.invoke({"input": {"documents": doc, "question": question}})
+                **self.chain.invoke(
+                    {"input": {"documents": doc, "question": question}}
+                ),
+                analized_document=doc,
             )
             for doc in documents
         ]
@@ -102,11 +105,11 @@ class Generate(BaseChain):
 
     pull_prompt: str = field(default="rlm/rag-prompt")
 
-    def __post_init__(self) -> None:
-        """Acrescenta o comportamento de formatar a resposta para o usuário."""
-        super().__post_init__()
+    # def __post_init__(self) -> None:
+    #     """Acrescenta o comportamento de formatar a resposta para o usuário."""
+    #     super().__post_init__()
 
-        self.chain = self.chain | StrOutputParser()
+    #     self.chain = self.chain | StrOutputParser()
 
     def invoke(self, question: str, documents: list[Document]) -> str:
         """

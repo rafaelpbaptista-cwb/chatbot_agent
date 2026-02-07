@@ -12,6 +12,7 @@ dependencies = [
     "langchain-google-genai>=4.2.0",
     "langchain-text-splitters>=1.1.0",
     "langgraph>=1.0.7",
+    "panel>=1.8.7",
     "pre-commit>=4.5.1",
     "pytest>=8.4.2",
     "python-dotenv>=1.2.1",
