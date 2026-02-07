@@ -1,6 +1,7 @@
-# Minhas costomizações
+# Minhas customizações
 dados/**
 teste*.py
+*.png
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

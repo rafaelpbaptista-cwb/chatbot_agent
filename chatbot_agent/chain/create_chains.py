@@ -13,7 +13,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmb
 from langsmith import Client
 from pydantic import BaseModel
 
-from chatbot_agent.structured_output.models import RagGraderAnswer
+from chatbot_agent.structured_output.models import DocumentsGraderAnswer
 
 
 @dataclass
@@ -62,14 +62,18 @@ class BaseChain(ABC):
 
 
 @dataclass
-class RagGrader(BaseChain):
-    """Classe que avalia a qualidade dos RAGs obtidos."""
+class DocumentsGrader(BaseChain):
+    """Classe que avalia a qualidade dos RAGs (docuentos) obtidos."""
 
     pull_prompt: str = field(default="rlm/rag-document-relevance")
 
-    def invoke(self, question: str, documents: list[Document]) -> list[RagGraderAnswer]:
+    def invoke(
+        self, question: str, documents: list[Document]
+    ) -> list[DocumentsGraderAnswer]:
         """
         Método para avaliar a qualidade dos itens recuperados via RAG.
+
+        Score 1 documento está relacionado ao questionamento do usuário.
 
         Parameters
         ----------
@@ -85,7 +89,7 @@ class RagGrader(BaseChain):
             recuperados
         """
         return [
-            RagGraderAnswer(
+            DocumentsGraderAnswer(
                 **self.chain.invoke({"input": {"documents": doc, "question": question}})
             )
             for doc in documents
@@ -170,14 +174,14 @@ def create_retriever() -> Retriever:
     return Retriever()
 
 
-def create_rag_grader() -> RagGrader:
+def create_documents_grader() -> DocumentsGrader:
     """Cria um objeto para avaliação de RAG.
 
     Returns
     -------
     RagGrader: objeto para avaliação de RAG.
     """
-    return RagGrader()
+    return DocumentsGrader()
 
 
 def create_generate() -> Generate:
