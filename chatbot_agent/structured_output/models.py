@@ -23,5 +23,4 @@ class GraphState(TypedDict):
 
     question: str
     response: str
-    generation: str
     documents: list[str]
