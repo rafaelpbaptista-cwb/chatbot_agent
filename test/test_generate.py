@@ -17,7 +17,7 @@ def generate() -> Generate:
 
 def test_generate(generate: Generate) -> None:
     response = generate.invoke(
-        "O que é um chatbot?",
+        "Como criar uma conexão com o banco de dados histórico oficial?",
         documents=[
             Document(
                 page_content="from infra_copel import MongoHistoricoOficial\nmongo = MongoHistoricoOficial()"
@@ -30,7 +30,7 @@ def test_generate(generate: Generate) -> None:
 
     logger.info("")
     logger.info("-" * 50)
-    logger.info("Response: %s", response)
+    logger.info("Response: %s", response.content)
     logger.info("-" * 50)
 
     assert response

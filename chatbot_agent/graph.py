@@ -124,4 +124,15 @@ class Application:
             f.write(self.app.get_graph().draw_mermaid_png())
 
     def invoke(self, question: str) -> str:
+        """Responde ao questionamento do usuário.
+
+        Args:
+            question (str):
+                Questionamento do usuário
+
+        Returns
+        -------
+            str:
+                Resposta ao questionamento do usuário
+        """
         return self.app.invoke(input={"question": question})["response"]

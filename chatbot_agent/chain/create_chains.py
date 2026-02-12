@@ -6,7 +6,12 @@ from dataclasses import dataclass, field
 
 from langchain_chroma import Chroma
 from langchain_core.documents import Document
-from langchain_core.output_parsers import StrOutputParser
+from langchain_core.prompts import (
+    ChatPromptTemplate,
+    HumanMessagePromptTemplate,
+    PromptTemplate,
+    SystemMessagePromptTemplate,
+)
 from langchain_core.prompts.structured import StructuredPrompt
 from langchain_core.runnables.base import RunnableSequence
 from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
@@ -14,6 +19,39 @@ from langsmith import Client
 from pydantic import BaseModel
 
 from chatbot_agent.structured_output.models import DocumentsGraderAnswer
+
+SYSTEM_MESSAGE_TEMPLATE = """
+Você é um Tech Lead especialista em Python focado em mentoria de desenvolvedores júnior.
+Sua missão é responder a perguntas técnicas baseando-se ESTRITAMENTE no contexto
+fornecido abaixo.
+
+DIRETRIZES DE RESPOSTA:
+1. FONTE DA VERDADE: Use APENAS as informações contidas na seção 'Contexto' para
+formular sua resposta.
+   - Se o contexto não contiver as informações necessárias para resolver o problema ou
+   explicar a biblioteca proprietária/pública em questão, você DEVE responder:
+   "Desculpe, não possuo informações suficientes na minha base de conhecimento interna
+   para fornecer um exemplo funcional sobre este tópico específico."
+   - NÃO tente adivinhar métodos ou criar código baseando-se em seu conhecimento prévio
+   se ele não estiver validado pelo contexto.
+
+2. GERAÇÃO DE CÓDIGO (OBRIGATÓRIO):
+   - Se houver contexto suficiente, sua resposta TEM QUE incluir um bloco de código
+   Python completo.
+   - O código deve ser "Pronto para Execução": inclua todos os `imports` necessários
+     no topo.
+   - O código deve ser simples e direto (evite abstrações complexas desnecessárias).
+   - O código deve ser encapsulado em funções ou classes quando apropriado, mas deve
+   sempre incluir um bloco `if __name__ == "__main__":` demonstrando o uso real.
+
+3. EXPLICAÇÃO:
+   - Forneça uma explicação concisa da lógica utilizada.
+   - Não explique conceitos básicos de ambiente (como pip install ou salvar arquivos),
+   foque na lógica do código e no uso da biblioteca.
+
+Contexto:
+{context}
+"""
 
 
 @dataclass
@@ -103,13 +141,33 @@ class DocumentsGrader(BaseChain):
 class Generate(BaseChain):
     """Classe responsável por responder aos questionamentos do usuário."""
 
-    pull_prompt: str = field(default="rlm/rag-prompt")
+    system_prompt_template: SystemMessagePromptTemplate = field(
+        default_factory=lambda: SystemMessagePromptTemplate(
+            prompt=PromptTemplate(
+                template=SYSTEM_MESSAGE_TEMPLATE,
+                input_variables=["context"],
+            )
+        )
+    )
 
-    # def __post_init__(self) -> None:
-    #     """Acrescenta o comportamento de formatar a resposta para o usuário."""
-    #     super().__post_init__()
+    human_prompt_template: HumanMessagePromptTemplate = field(
+        default_factory=lambda: HumanMessagePromptTemplate(
+            prompt=PromptTemplate(
+                input_variables=["question"],
+                template="{question}",
+            )
+        )
+    )
 
-    #     self.chain = self.chain | StrOutputParser()
+    def __post_init__(self) -> None:
+        """Inicializa as propriedades da objeto."""
+        self.chain = (
+            ChatPromptTemplate(
+                input_variables=["context", "question"],
+                messages=[self.system_prompt_template, self.human_prompt_template],
+            )
+            | self.llm
+        )
 
     def invoke(self, question: str, documents: list[Document]) -> str:
         """
