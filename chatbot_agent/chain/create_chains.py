@@ -5,6 +5,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 
 from langchain_chroma import Chroma
+from langchain_classic.retrievers import MultiQueryRetriever
 from langchain_core.documents import Document
 from langchain_core.prompts import (
     ChatPromptTemplate,
@@ -41,8 +42,6 @@ formular sua resposta.
    - O código deve ser "Pronto para Execução": inclua todos os `imports` necessários
      no topo.
    - O código deve ser simples e direto (evite abstrações complexas desnecessárias).
-   - O código deve ser encapsulado em funções ou classes quando apropriado, mas deve
-   sempre incluir um bloco `if __name__ == "__main__":` demonstrando o uso real.
 
 3. EXPLICAÇÃO:
    - Forneça uma explicação concisa da lógica utilizada.
@@ -225,6 +224,43 @@ class Retriever:
         return self.client_vector_db.max_marginal_relevance_search(prompt)
 
 
+@dataclass
+class QueryRetriever(Retriever):
+    """Adiciona geração de variaões de pesquisa.
+
+    Extenção da classe Retriever acrescentando a funcionalidade de gerar múltiplas
+    queries para recuperação de contexto.
+    """
+
+    multi_query_retrivier: MultiQueryRetriever = field(init=False)
+
+    def __post_init__(self) -> None:
+        """Inicializa as propriedades da objeto."""
+        self.multi_query_retrivier = MultiQueryRetriever.from_llm(
+            retriever=self.client_vector_db.as_retriever(),
+            llm=ChatGoogleGenerativeAI(model=os.getenv("LLM_MODEL"), temperature=0),
+        )
+
+    def invoke(self, prompt: str) -> list[Document]:
+        """Método para recuperar o contexto mais relevante para uma pergunta.
+
+        Recupera o contexto mais relevante para uma pergunta utilizando o modelo de LLM
+        configurado na aplicação.
+
+        Acrescenta a funcionalidade de gerar múltiplas queries para recuperação de
+        contexto.
+
+        Parameters
+        ----------
+            prompt (str): pergunta do usuário.
+
+        Returns
+        -------
+            list[Document]: contextos mais relevante.
+        """
+        return self.multi_query_retrivier.invoke(prompt)
+
+
 def create_retriever() -> Retriever:
     """Cria um objeto para recuperação aumentada (RAG) no vector database.
 
@@ -232,7 +268,7 @@ def create_retriever() -> Retriever:
     -------
     Retriever: objeto para recuperação aumentada (RAG).
     """
-    return Retriever()
+    return QueryRetriever()
 
 
 def create_documents_grader() -> DocumentsGrader:
