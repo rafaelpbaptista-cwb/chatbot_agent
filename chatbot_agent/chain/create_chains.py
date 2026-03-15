@@ -207,7 +207,9 @@ class QueryRetriever(Retriever):
     def __post_init__(self) -> None:
         """Inicializa as propriedades da objeto."""
         self.multi_query_retrivier = MultiQueryRetriever.from_llm(
-            retriever=self.client_vector_db.as_retriever(),
+            retriever=self.client_vector_db.as_retriever(
+                search_kwargs={"filter": {"type_data": "python"}}
+            ),
             llm=ChatGoogleGenerativeAI(model=os.getenv("LLM_MODEL"), temperature=0),
         )
 

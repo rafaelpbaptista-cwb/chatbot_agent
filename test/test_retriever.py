@@ -27,6 +27,7 @@ def test_retriever(retriever: Retriever) -> None:
     respostas = retriever.invoke("Como se conectar na base de dados histórico oficial?")
 
     for resp in respostas:
+        assert resp.metadata["type_data"] == "python"
         logger.info("Content: %s", resp.page_content)
         logger.info("-" * 50)
 
