@@ -1,7 +1,6 @@
 """Script responsável por instanciar os LLMs/chains a serem utilizados na aplicação."""
 
 import os
-from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
 
@@ -14,18 +13,11 @@ from langchain_core.prompts import (
     PromptTemplate,
     SystemMessagePromptTemplate,
 )
-from langchain_core.prompts.structured import StructuredPrompt
 from langchain_core.runnables.base import RunnableSequence
 from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
-from langsmith import Client
-from pydantic import BaseModel
 
-from chatbot_agent.instructions.system_message_template import (
-    GENERATE,
-)
-from chatbot_agent.structured_output.models import (
-    DocumentsGraderAnswer,
-)
+from chatbot_agent.instructions.system_message_template import HTML_GRADER
+from chatbot_agent.structured_output.models import DocumentsGraderAnswer
 
 
 class RetrieverOptions(Enum):
@@ -36,10 +28,12 @@ class RetrieverOptions(Enum):
 
 
 @dataclass
-class BaseChain(ABC):
-    """Classe base para instanciar os LLMs/chains a serem utilizados na aplicação."""
+class LargeLanguageModel:
+    """Classe que representa um modelo LLM.
 
-    prompt: StructuredPrompt = field(init=False)
+    Classe utilizada para insteração com LLM para diversos propósitos,
+    como geração de respostas ou avaliação de documentos.
+    """
 
     llm: ChatGoogleGenerativeAI = field(
         default_factory=lambda: ChatGoogleGenerativeAI(
@@ -47,101 +41,33 @@ class BaseChain(ABC):
         )
     )
 
+    system_prompt_template: SystemMessagePromptTemplate = field(init=False)
+
+    human_prompt_template: HumanMessagePromptTemplate = field(init=False)
+
     chain: RunnableSequence = field(init=False)
 
-    pull_prompt: str = field(default=None)
+    system_instruction: str = field(init=True, default=None)
 
     def __post_init__(self) -> None:
-        """Método interno do dataclass.
-
-        Inicializa propriedade após inicialização do
-        objeto.
-        """
-        self.prompt = Client().pull_prompt(self.pull_prompt)
-        self.chain = self.prompt | self.llm
-
-    @abstractmethod
-    def invoke(self, question: str, documents: list[Document]) -> list[BaseModel]:
-        """Definição do método para a execução de cada chain.
-
-        Comportamento dessa invocação deverá ser detalhada em cada classe filha.
-
-        Parameters
-        ----------
-        question (str):
-            Questionamento relevante para cada chain
-
-        documents (list[Document]):
-            Lista de documentos relevante para cada chain
-
-        Returns
-        -------
-            list[BaseModel]: Resposta definida em cada classe filha
-        """
-
-
-@dataclass
-class DocumentsGrader(BaseChain):
-    """Classe que avalia a qualidade dos RAGs (docuentos) obtidos."""
-
-    pull_prompt: str = field(default="rlm/rag-document-relevance")
-
-    def invoke(
-        self, question: str, documents: list[Document]
-    ) -> list[DocumentsGraderAnswer]:
-        """
-        Método para avaliar a qualidade dos itens recuperados via RAG.
-
-        Score 1 documento está relacionado ao questionamento do usuário.
-
-        Parameters
-        ----------
-        question (str):
-            Questionamento do usuário
-
-        documents (list[Document]):
-            Lista de documentos recuperados
-
-        Returns
-        -------
-            list[RagGraderAnswer]: Lista de avaliações de qualidade dos itens
-            recuperados
-        """
-        return [
-            DocumentsGraderAnswer(
-                **self.chain.invoke(
-                    {"input": {"documents": doc, "question": question}}
-                ),
-                analized_document=doc,
-            )
-            for doc in documents
-        ]
-
-
-@dataclass
-class Generate(BaseChain):
-    """Classe responsável por responder aos questionamentos do usuário."""
-
-    system_prompt_template: SystemMessagePromptTemplate = field(
-        default_factory=lambda: SystemMessagePromptTemplate(
+        """Inicializa as propriedades da objeto."""
+        self.system_prompt_template = SystemMessagePromptTemplate(
             prompt=PromptTemplate(
-                template=GENERATE,
+                template=self.system_instruction,
                 input_variables=["context"],
             )
         )
-    )
 
-    human_prompt_template: HumanMessagePromptTemplate = field(
-        default_factory=lambda: HumanMessagePromptTemplate(
+        self.human_prompt_template = HumanMessagePromptTemplate(
             prompt=PromptTemplate(
                 input_variables=["question"],
                 template="{question}",
             )
         )
-    )
 
-    def __post_init__(self) -> None:
-        """Inicializa as propriedades da objeto."""
+        if self.system_instruction == HTML_GRADER:
+            self.llm = self.llm.with_structured_output(DocumentsGraderAnswer)
+
         self.chain = (
             ChatPromptTemplate(
                 input_variables=["context", "question"],
@@ -150,26 +76,34 @@ class Generate(BaseChain):
             | self.llm
         )
 
-    def invoke(self, question: str, documents: list[Document]) -> str:
-        """
-        Método para responder aos questionamentos do usuário.
-
-        Recebe uma pergunta e uma lista de documentos RAGs que ajudaram
-        no contexto para responder ao questionamento do usuário.
+    def invoke(
+        self, question: str, context: list[Document] | Document
+    ) -> list[Document] | Document:
+        """Geração da resposta ao questionamento em questão.
 
         Parameters
         ----------
-        question (str):
-            Questionamento do usuário
+            question (str):
+                Questionamento
 
-        documents (list[Document]):
-            Lista de documentos recuperados
+            context (list[Document] | Document):
+                Contexto para acrescesmo de informação para a geração da resposta
 
         Returns
         -------
-            str: Resposta ao questionamento do usuário.
+            list[Document] | Document:
+                Resposta gerada pelo modelo, podendo ser uma lista de respostas ou uma
+                resposta única
         """
-        return self.chain.invoke({"question": question, "context": documents})
+        if isinstance(context, list):
+            list_answers = []
+            for doc in context:
+                answer = self.chain.invoke({"question": question, "context": doc})
+                list_answers.append(answer)
+
+            return list_answers
+
+        return self.chain.invoke({"question": question, "context": context})
 
 
 @dataclass
@@ -250,21 +184,23 @@ def create_query_retriever(type_data_query: RetrieverOptions) -> QueryRetriever:
     return QueryRetriever(type_data_query=type_data_query)
 
 
-def create_documents_grader() -> DocumentsGrader:
-    """Cria um objeto para avaliação de RAG.
+def create_documents_html_grader() -> LargeLanguageModel:
+    """Cria um objeto para avaliação de documentos HTML.
 
     Returns
     -------
-    RagGrader: objeto para avaliação de RAG.
+    LargeLanguageModel:
+        Objeto com a instrução de sistema para executar o avaliador de
+        documentos HTML
     """
-    return DocumentsGrader()
+    return LargeLanguageModel(system_instruction=HTML_GRADER)
 
 
-def create_generate() -> Generate:
+def create_generate() -> LargeLanguageModel:
     """Cria um objeto para geração de respostas.
 
     Returns
     -------
     Generate: objeto para geração de respostas.
     """
-    return Generate()
+    return None  # LargeLanguageModel()

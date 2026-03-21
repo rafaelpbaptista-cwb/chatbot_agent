@@ -1,5 +1,5 @@
 """Constantes utilizadas na aplicação."""
 
-RETRIEVE = "retrieve"
+RETRIEVER_HTML = "retriever_html"
 GRADE_DOCUMENTS = "grade_documents"
 GENERATE = "generate"

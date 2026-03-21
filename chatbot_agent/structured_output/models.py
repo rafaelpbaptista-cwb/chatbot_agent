@@ -13,9 +13,11 @@ from pydantic import BaseModel, Field
 class DocumentsGraderAnswer(BaseModel):
     """Classe estruturada usada para retornar resposta do RagGrader."""
 
-    Score: int = Field(description="Relevance score between 0 and 1")
-    Explaination: str = Field(description="Explanation of relevance score")
-    analized_document: Document = Field(description="Analized Document")
+    is_relevante: bool = Field(description="Nota de relevância podendo ser 0 ou 1")
+    explaination: str = Field(
+        description="Explicação (máximo 100 caracteres) sucinta do score"
+    )
+    analized_document: Document = Field(description="Documento Analisado")
 
 
 class GraphState(TypedDict):

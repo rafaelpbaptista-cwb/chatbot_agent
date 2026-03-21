@@ -4,9 +4,7 @@ import logging
 
 import pytest
 
-from chatbot_agent import create_query_retriever, create_documents_grader
-
-# from langchain_core.documents import Document
+from chatbot_agent import create_query_retriever
 
 from chatbot_agent.chain.create_chains import MultiQueryRetriever, RetrieverOptions
 
@@ -16,12 +14,6 @@ logger = logging.getLogger(__name__)
 @pytest.fixture(params=[RetrieverOptions.PYTHON, RetrieverOptions.HTML])
 def info_retrievier(request) -> tuple[MultiQueryRetriever, str]:
     return create_query_retriever(request.param), request.param
-
-
-# @pytest.fixture
-# def rag_grader() -> DocumentsGrader:
-#     return create_documents_grader()
-
 
 def test_retriever(info_retrievier: tuple[MultiQueryRetriever, str]) -> None:
     logger.info("")
@@ -41,22 +33,3 @@ def test_retriever(info_retrievier: tuple[MultiQueryRetriever, str]) -> None:
 
     assert respostas
 
-    # def test_documents_grader(rag_grader: DocumentsGrader) -> None:
-    #     """Testa se o invoke do RagGrader retorna respostas quando chamado com uma pergunta e contextos."""
-    #     respostas = rag_grader.invoke(
-    #         question="Como se conectar na base de dados histórico oficial?",
-    #         documents=[
-    #             Document(
-    #                 page_content="from infra_copel import MongoHistoricoOficial\nmongo = MongoHistoricoOficial()"
-    #             ),
-    #             Document(
-    #                 page_content="impor pandas as pd\ndf = pd.DataFrame(data={'col1': [1, 2], 'col2': [3, 4]})"
-    #             ),
-    #         ],
-    #     )
-
-    # for resp in respostas:
-    #     logger.info("Score: %s", resp.Score)
-    #     logger.info("Explaination: %s", resp.Explaination)
-
-    # assert respostas

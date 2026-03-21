@@ -10,28 +10,29 @@ from langgraph.graph.state import CompiledStateGraph
 
 from chatbot_agent import (
     GENERATE,
-    RETRIEVE,
+    RETRIEVER_HTML,
     GraphState,
-    create_documents_grader,
+    create_documents_html_grader,
     create_generate,
-    create_retriever,
+    create_query_retriever,
 )
+from chatbot_agent.chain.create_chains import RetrieverOptions
 from chatbot_agent.consts import GRADE_DOCUMENTS
 
 logger = logging.getLogger(__name__)
 
-retriever = create_retriever()
-rag_grader = create_documents_grader()
+retriever_html = create_query_retriever(RetrieverOptions.HTML)
+rag_grader = create_documents_html_grader()
 generate = create_generate()
 
 
-def retrieve_node(state: GraphState) -> dict[str, Any]:
-    """Retorna um node que executa a etapa de recuperação RAG."""
+def retriever_html_node(state: GraphState) -> dict[str, Any]:
+    """Retorna um node que executa a etapa de recuperação RAG docs HTML."""
     logger.debug("")
-    logger.debug("--- RETRIEVE ---")
+    logger.debug("--- RETRIEVER HTML---")
 
     return {
-        "documents": retriever.invoke(state["question"]),
+        "documents": retriever_html.invoke(state["question"]),
     }
 
 
@@ -100,15 +101,15 @@ class Application:
     def _add_nodes(self) -> None:
         logger.debug("Adicionando nodes ao graph")
 
-        self.workflow.add_node(RETRIEVE, retrieve_node)
+        self.workflow.add_node(RETRIEVER_HTML, retriever_html_node)
         self.workflow.add_node(GRADE_DOCUMENTS, grade_documents_node)
         self.workflow.add_node(GENERATE, generate_node)
 
     def _add_nodes_sequence(self) -> None:
         logger.debug("Adicionando sequencia do nodes do graph")
 
-        self.workflow.add_edge(START, RETRIEVE)
-        self.workflow.add_edge(RETRIEVE, GRADE_DOCUMENTS)
+        self.workflow.add_edge(START, RETRIEVER_HTML)
+        self.workflow.add_edge(RETRIEVER_HTML, GRADE_DOCUMENTS)
         self.workflow.add_edge(GRADE_DOCUMENTS, GENERATE)
         self.workflow.add_edge(GENERATE, END)
 
