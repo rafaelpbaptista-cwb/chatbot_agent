@@ -1,6 +1,6 @@
 """Script contendo as instruções a serem passadas para os modelos."""
 
-SYSTEM_MESSAGE_TEMPLATE = """
+GENERATE = """
 Você é um Tech Lead especialista em Python focado em mentoria de desenvolvedores júnior.
 Sua missão é responder a perguntas técnicas baseando-se ESTRITAMENTE no contexto
 fornecido abaixo.

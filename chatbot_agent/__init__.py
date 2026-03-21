@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 from .chain.create_chains import (
     create_documents_grader,
     create_generate,
-    create_retriever,
+    create_query_retriever,
 )
 from .consts import GENERATE, GRADE_DOCUMENTS, RETRIEVE
 from .structured_output.models import GraphState
@@ -20,5 +20,5 @@ __all__ = [
     "GraphState",
     "create_documents_grader",
     "create_generate",
-    "create_retriever",
+    "create_query_retriever",
 ]

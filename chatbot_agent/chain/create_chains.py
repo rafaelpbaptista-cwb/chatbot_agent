@@ -3,6 +3,7 @@
 import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
+from enum import Enum
 
 from langchain_chroma import Chroma
 from langchain_classic.retrievers import MultiQueryRetriever
@@ -19,8 +20,19 @@ from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmb
 from langsmith import Client
 from pydantic import BaseModel
 
-from chatbot_agent.instructions.instructions import SYSTEM_MESSAGE_TEMPLATE
-from chatbot_agent.structured_output.models import DocumentsGraderAnswer
+from chatbot_agent.instructions.system_message_template import (
+    GENERATE,
+)
+from chatbot_agent.structured_output.models import (
+    DocumentsGraderAnswer,
+)
+
+
+class RetrieverOptions(Enum):
+    """Enum com opções as opções válidas para o Retriever."""
+
+    HTML = "html"
+    PYTHON = "python"
 
 
 @dataclass
@@ -113,7 +125,7 @@ class Generate(BaseChain):
     system_prompt_template: SystemMessagePromptTemplate = field(
         default_factory=lambda: SystemMessagePromptTemplate(
             prompt=PromptTemplate(
-                template=SYSTEM_MESSAGE_TEMPLATE,
+                template=GENERATE,
                 input_variables=["context"],
             )
         )
@@ -161,11 +173,27 @@ class Generate(BaseChain):
 
 
 @dataclass
-class Retriever:
-    """Classe para recuperação aumentada (RAG).
+class QueryRetriever:
+    """Classe que representa um modelo de recuperação de documentos.
 
-    Classe utilizada para crescentar contexto aos questionamentos
-    dos usuários
+    Parameters
+    ----------
+    client_vector_db : Chroma
+        Instância do Chroma que representa o banco de vetores
+
+    type_data_query : str
+        Tipo de dados que será usado na consulta
+
+    Returns
+    -------
+    QueryRetriever
+        Instância do QueryRetriever
+
+    Notes
+    -----
+    Essa classe é responsável por recuperar os documentos mais relevantes
+    para uma pergunta do usuário, podendo recuperar documentação (markdown) ou códido
+    (python)
     """
 
     client_vector_db: Chroma = field(
@@ -177,70 +205,49 @@ class Retriever:
         )
     )
 
-    def invoke(self, prompt: str) -> list[Document]:
-        """Método para recuperar o contexto mais relevante para uma pergunta.
-
-        Recupera o contexto mais relevante para uma pergunta utilizando o modelo de LLM
-        configurado na aplicação.
-
-        Parameters
-        ----------
-            prompt (str): pergunta do usuário.
-
-        Returns
-        -------
-            list[Document]: contextos mais relevante.
-        """
-        return self.client_vector_db.max_marginal_relevance_search(prompt)
-
-
-@dataclass
-class QueryRetriever(Retriever):
-    """Adiciona geração de variaões de pesquisa.
-
-    Extenção da classe Retriever acrescentando a funcionalidade de gerar múltiplas
-    queries para recuperação de contexto.
-    """
+    type_data_query: RetrieverOptions = field(default=RetrieverOptions.PYTHON)
 
     multi_query_retrivier: MultiQueryRetriever = field(init=False)
 
     def __post_init__(self) -> None:
-        """Inicializa as propriedades da objeto."""
+        """Iniciar propriedades do objeto."""
         self.multi_query_retrivier = MultiQueryRetriever.from_llm(
             retriever=self.client_vector_db.as_retriever(
-                search_kwargs={"filter": {"type_data": "python"}}
+                search_kwargs={"filter": {"type_data": self.type_data_query.value}}
             ),
             llm=ChatGoogleGenerativeAI(model=os.getenv("LLM_MODEL"), temperature=0),
         )
 
     def invoke(self, prompt: str) -> list[Document]:
-        """Método para recuperar o contexto mais relevante para uma pergunta.
-
-        Recupera o contexto mais relevante para uma pergunta utilizando o modelo de LLM
-        configurado na aplicação.
-
-        Acrescenta a funcionalidade de gerar múltiplas queries para recuperação de
-        contexto.
+        """Recuperação de informações relevantes para a pergunta do usuário.
 
         Parameters
         ----------
-            prompt (str): pergunta do usuário.
+        prompt (str):
+            Pergunta do usuário
 
         Returns
         -------
-            list[Document]: contextos mais relevante.
+        list[Document]:
+            Lista de documentos mais relevantes para a pergunta do usuário
         """
         return self.multi_query_retrivier.invoke(prompt)
 
 
-def create_retriever() -> Retriever:
-    """Cria um objeto para recuperação aumentada (RAG) no vector database.
+def create_query_retriever(type_data_query: RetrieverOptions) -> QueryRetriever:
+    """Cria um objeto QueryRetriever com o tipo de dado especificado.
+
+    Parameters
+    ----------
+    type_data_query (RetrieverOptions):
+        Tipo de dado a ser recuperado
 
     Returns
     -------
-    Retriever: objeto para recuperação aumentada (RAG).
+    QueryRetriever:
+        Objeto para recuperação de informações relevantes para a pergunta do usuário
     """
-    return QueryRetriever()
+    return QueryRetriever(type_data_query=type_data_query)
 
 
 def create_documents_grader() -> DocumentsGrader:

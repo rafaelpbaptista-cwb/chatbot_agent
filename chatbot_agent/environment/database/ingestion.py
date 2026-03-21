@@ -7,7 +7,7 @@ import logging
 import os
 
 from langchain_chroma import Chroma
-from langchain_community.document_loaders import DirectoryLoader, UnstructuredHTMLLoader
+from langchain_community.document_loaders import BSHTMLLoader, DirectoryLoader
 from langchain_community.document_loaders.python import PythonLoader
 from langchain_core.documents import Document
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
@@ -58,7 +58,7 @@ def _insert_doc_html_data(dir_docs_python: str) -> list[Document]:
         show_progress=True,
         use_multithreading=True,
         recursive=True,
-        loader_cls=UnstructuredHTMLLoader,
+        loader_cls=BSHTMLLoader,
     )
 
     list_documents = loader.load()
