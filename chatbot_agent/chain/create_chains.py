@@ -16,7 +16,11 @@ from langchain_core.prompts import (
 from langchain_core.runnables.base import RunnableSequence
 from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
 
-from chatbot_agent.instructions.system_message_template import HTML_GRADER
+from chatbot_agent.instructions.system_message_template import (
+    HTML_GRADER,
+    PYTHON_GRADER,
+    PYTHON_VERIFY,
+)
 from chatbot_agent.structured_output.models import DocumentsGraderAnswer
 
 
@@ -49,13 +53,12 @@ class LargeLanguageModel:
 
     system_instruction: str = field(init=True, default=None)
 
+    structured_output: DocumentsGraderAnswer = field(init=True, default=None)
+
     def __post_init__(self) -> None:
         """Inicializa as propriedades da objeto."""
-        self.system_prompt_template = SystemMessagePromptTemplate(
-            prompt=PromptTemplate(
-                template=self.system_instruction,
-                input_variables=["context"],
-            )
+        self.system_prompt_template = SystemMessagePromptTemplate.from_template(
+            template=self.system_instruction
         )
 
         self.human_prompt_template = HumanMessagePromptTemplate(
@@ -65,7 +68,7 @@ class LargeLanguageModel:
             )
         )
 
-        if self.system_instruction == HTML_GRADER:
+        if self.structured_output:
             self.llm = self.llm.with_structured_output(DocumentsGraderAnswer)
 
         self.chain = (
@@ -77,7 +80,10 @@ class LargeLanguageModel:
         )
 
     def invoke(
-        self, question: str, context: list[Document] | Document
+        self,
+        question: str,
+        context: list[Document] | Document,
+        **extra_args_system_prompt: str,
     ) -> list[Document] | Document:
         """Geração da resposta ao questionamento em questão.
 
@@ -89,6 +95,9 @@ class LargeLanguageModel:
             context (list[Document] | Document):
                 Contexto para acrescesmo de informação para a geração da resposta
 
+            **extra_args_system_prompt (str):
+                Argumentos extras para o system prompt
+
         Returns
         -------
             list[Document] | Document:
@@ -98,12 +107,16 @@ class LargeLanguageModel:
         if isinstance(context, list):
             list_answers = []
             for doc in context:
-                answer = self.chain.invoke({"question": question, "context": doc})
+                answer = self.chain.invoke(
+                    {"question": question, "context": doc, **extra_args_system_prompt}
+                )
                 list_answers.append(answer)
 
             return list_answers
 
-        return self.chain.invoke({"question": question, "context": context})
+        return self.chain.invoke(
+            {"question": question, "context": context, **extra_args_system_prompt}
+        )
 
 
 @dataclass
@@ -184,7 +197,7 @@ def create_query_retriever(type_data_query: RetrieverOptions) -> QueryRetriever:
     return QueryRetriever(type_data_query=type_data_query)
 
 
-def create_documents_html_grader() -> LargeLanguageModel:
+def create_html_grader() -> LargeLanguageModel:
     """Cria um objeto para avaliação de documentos HTML.
 
     Returns
@@ -193,7 +206,23 @@ def create_documents_html_grader() -> LargeLanguageModel:
         Objeto com a instrução de sistema para executar o avaliador de
         documentos HTML
     """
-    return LargeLanguageModel(system_instruction=HTML_GRADER)
+    return LargeLanguageModel(
+        system_instruction=HTML_GRADER, structured_output=DocumentsGraderAnswer
+    )
+
+
+def create_python_grader() -> LargeLanguageModel:
+    """Cria um objeto para avaliação de código python.
+
+    Returns
+    -------
+    LargeLanguageModel:
+        Objeto com a instrução de sistema para executar o avaliador de
+        documentos HTML
+    """
+    return LargeLanguageModel(
+        system_instruction=PYTHON_GRADER, structured_output=DocumentsGraderAnswer
+    )
 
 
 def create_generate() -> LargeLanguageModel:
@@ -204,3 +233,17 @@ def create_generate() -> LargeLanguageModel:
     Generate: objeto para geração de respostas.
     """
     return None  # LargeLanguageModel()
+
+
+def create_verify_code() -> LargeLanguageModel:
+    """Cria um objeto para avalidar necessidade de pesquisa de códigos em Python.
+
+    Returns
+    -------
+    LargeLanguageModel:
+        Objeto com a instrução de sistema para executar o avaliador de necessidade de
+        códigos em Python
+    """
+    return LargeLanguageModel(
+        system_instruction=PYTHON_VERIFY, structured_output=DocumentsGraderAnswer
+    )

@@ -10,20 +10,34 @@ from langgraph.graph.state import CompiledStateGraph
 
 from chatbot_agent import (
     GENERATE,
+    GRADE_HTML_DOCUMENTS,
     RETRIEVER_HTML,
+    RETRIEVER_PYTHON,
     GraphState,
-    create_documents_html_grader,
     create_generate,
+    create_html_grader,
     create_query_retriever,
+    create_verify_code,
 )
 from chatbot_agent.chain.create_chains import RetrieverOptions
-from chatbot_agent.consts import GRADE_DOCUMENTS
 
 logger = logging.getLogger(__name__)
 
 retriever_html = create_query_retriever(RetrieverOptions.HTML)
-rag_grader = create_documents_html_grader()
+retriever_python = create_query_retriever(RetrieverOptions.PYTHON)
+html_grader = create_html_grader()
 generate = create_generate()
+verify_code = create_verify_code()
+
+
+def retriever_python_node(state: GraphState) -> dict[str, Any]:
+    """Retorna um node que executa a etapa de recuperação RAG de código python."""
+    logger.debug("")
+    logger.debug("--- RETRIEVER PYTHON---")
+
+    return {
+        "documents": retriever_html.invoke(state["question"]),
+    }
 
 
 def retriever_html_node(state: GraphState) -> dict[str, Any]:
@@ -51,11 +65,11 @@ def grade_documents_node(state: GraphState) -> dict[str, Any]:
         list[Document]: lista de documentos com score 1.
     """
     logger.debug("")
-    logger.debug("--- GRADE CONTEXT ---")
+    logger.debug("--- GRADE HTML CONTEXT ---")
 
     list_valid_documents = [
         answer.analized_document
-        for answer in rag_grader.invoke(state["question"], state["documents"])
+        for answer in html_grader.invoke(state["question"], state["documents"])
         if answer.Score == 1
     ]
 
@@ -81,6 +95,24 @@ def generate_node(state: GraphState) -> dict[str, Any]:
     return {"response": response.content}
 
 
+def decide_need_code(state: GraphState) -> bool:
+    """Tomada de decisão.
+
+    Decide se é necessário obter códigos python para responder ao questionamento do
+    usuário
+
+    Parameters
+    ----------
+        state (GraphState): _description_
+
+    Returns
+    -------
+        bool:
+            True se é necessário obter código puthon e False caso contrário.
+    """
+    return verify_code.invoke(state["question"], state["documents"]).answer
+
+
 @dataclass
 class Application:
     """Classe que representa a aplicação."""
@@ -95,22 +127,34 @@ class Application:
 
         self._add_nodes()
         self._add_nodes_sequence()
+        self._add_conditional()
 
         self.app = self.workflow.compile()
+
+    def _add_conditional(self) -> None:
+        logger.debug("Adicionando condições de rotas")
+
+        self.workflow.add_conditional_edges(
+            GRADE_HTML_DOCUMENTS,
+            decide_need_code,
+            {True: RETRIEVER_PYTHON, False: GENERATE},
+        )
 
     def _add_nodes(self) -> None:
         logger.debug("Adicionando nodes ao graph")
 
         self.workflow.add_node(RETRIEVER_HTML, retriever_html_node)
-        self.workflow.add_node(GRADE_DOCUMENTS, grade_documents_node)
+        self.workflow.add_node(GRADE_HTML_DOCUMENTS, grade_documents_node)
         self.workflow.add_node(GENERATE, generate_node)
+        self.workflow.add_node(RETRIEVER_PYTHON, retriever_python_node)
 
     def _add_nodes_sequence(self) -> None:
         logger.debug("Adicionando sequencia do nodes do graph")
 
         self.workflow.add_edge(START, RETRIEVER_HTML)
-        self.workflow.add_edge(RETRIEVER_HTML, GRADE_DOCUMENTS)
-        self.workflow.add_edge(GRADE_DOCUMENTS, GENERATE)
+        self.workflow.add_edge(RETRIEVER_HTML, GRADE_HTML_DOCUMENTS)
+        self.workflow.add_edge(GRADE_HTML_DOCUMENTS, GENERATE)
+        self.workflow.add_edge(RETRIEVER_PYTHON, GENERATE)
         self.workflow.add_edge(GENERATE, END)
 
     def generate_image(self) -> None:

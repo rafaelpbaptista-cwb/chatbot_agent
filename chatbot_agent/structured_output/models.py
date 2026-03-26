@@ -13,7 +13,7 @@ from pydantic import BaseModel, Field
 class DocumentsGraderAnswer(BaseModel):
     """Classe estruturada usada para retornar resposta do RagGrader."""
 
-    is_relevante: bool = Field(description="Nota de relevância podendo ser 0 ou 1")
+    answer: bool = Field(description="Resposta podendo ser True ou False")
     explaination: str = Field(
         description="Explicação (máximo 100 caracteres) sucinta do score"
     )
