@@ -21,11 +21,10 @@ def python_grader() -> LargeLanguageModel:
 
 def test_html_grader(html_grader: LargeLanguageModel) -> None:
     """Testa se o invoke do RagGrader retorna respostas quando chamado com uma pergunta e contextos."""
-    respostas = html_grader.invoke(
+    resposta = html_grader.invoke(
         question="Como se conectar na base de dados histórico oficial?",
-        context=[
-            Document(
-                page_content="""HistoricoOficial(infra_copel.MongoDatabase):
+        documentation=Document(
+            page_content="""HistoricoOficial(infra_copel.MongoDatabase):
 
                 Classe que representa conexÃ£o com o 'historico_oficial' no MongoDB.
                 Attributes
@@ -39,45 +38,27 @@ def test_html_grader(html_grader: LargeLanguageModel) -> None:
 
                 Construtor da classe.
                     Cria o objeto baseado no nome da database."""
-            ),
-            Document(
-                page_content="""DataFrame
-                        Constructor
-                        DataFrame([data, index, columns, dtype, copy])
-
-                        Two-dimensional, size-mutable, potentially heterogeneous tabular data.
-
-                        Attributes and underlying data
-                        Axes"""
-            ),
-        ],
+        ),
     )
 
-    for resp in respostas:
-        logger.info("")
-        logger.info("Relevant: %s", resp.answer)
-        logger.info("Explaination: %s", resp.explaination)
-        logger.info("-" * 50)
+    logger.info("")
+    logger.info("Relevant: %s", resposta.answer)
+    logger.info("Explaination: %s", resposta.explanation)
+    logger.info("-" * 50)
 
-    assert respostas
+    assert resposta
 
 
 def test_python_grader(python_grader: LargeLanguageModel) -> None:
     """Testa se o invoke do RagGrader retorna respostas quando chamado com uma pergunta e contextos."""
 
-    respostas = python_grader.invoke(
+    resposta = python_grader.invoke(
         question="Como se conectar na base de dados histórico oficial?",
-        context=[
-            Document(
-                page_content="""from infra_copel import HistoricoOficial
+        code=Document(
+            page_content="""from infra_copel import HistoricoOficial
                 db = MongoHistoricoOficial()
                 """
-            ),
-            Document(
-                page_content="""import pandas as pd
-                df = pd.DataFrame()"""
-            ),
-        ],
+        ),
         documentation=[
             Document(
                 page_content="""HistoricoOficial(infra_copel.MongoDatabase):
@@ -108,10 +89,9 @@ def test_python_grader(python_grader: LargeLanguageModel) -> None:
         ],
     )
 
-    for resp in respostas:
-        logger.info("")
-        logger.info("Relevant: %s", resp.answer)
-        logger.info("Explaination: %s", resp.explaination)
-        logger.info("-" * 50)
+    logger.info("")
+    logger.info("Relevant: %s", resposta.answer)
+    logger.info("Explaination: %s", resposta.explanation)
+    logger.info("-" * 50)
 
-    assert respostas
+    assert resposta

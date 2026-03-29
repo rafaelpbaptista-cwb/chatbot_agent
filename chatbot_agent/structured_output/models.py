@@ -14,10 +14,10 @@ class DocumentsGraderAnswer(BaseModel):
     """Classe estruturada usada para retornar resposta do RagGrader."""
 
     answer: bool = Field(description="Resposta podendo ser True ou False")
-    explaination: str = Field(
+    explanation: str = Field(
         description="Explicação (máximo 100 caracteres) sucinta do score"
     )
-    analized_document: Document = Field(description="Documento Analisado")
+    analyzed_document: Document = Field(description="Documento Analisado")
 
 
 class GraphState(TypedDict):

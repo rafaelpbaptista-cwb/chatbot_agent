@@ -18,9 +18,8 @@ def verify_code() -> LargeLanguageModel:
 def test_verify_code(verify_code: LargeLanguageModel) -> None:
     resposta: DocumentsGraderAnswer = verify_code.invoke(
         question="Como se conectar na base de dados histórico oficial?",
-        context=
-            Document(
-                page_content="""class MongoHistoricoOficial(infra_copel.MongoDatabase):
+        documentation=Document(
+            page_content="""class MongoHistoricoOficial(infra_copel.MongoDatabase):
 
                                 Classe que representa conexão com o 'historico_oficial' no MongoDB.
 
@@ -31,12 +30,10 @@ def test_verify_code(verify_code: LargeLanguageModel) -> None:
                                 Construtor da classe.
 
                                 Cria o objeto baseado no nome da database."""
-            ),
+        ),
     )
 
     assert resposta
 
     logger.info("Documentação suficiente? %s", resposta.answer)
-    logger.info("Explicação: %s", resposta.explaination)
-
-
+    logger.info("Explicação: %s", resposta.explanation)

@@ -17,6 +17,7 @@ from langchain_core.runnables.base import RunnableSequence
 from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
 
 from chatbot_agent.instructions.system_message_template import (
+    GENERATE,
     HTML_GRADER,
     PYTHON_GRADER,
     PYTHON_VERIFY,
@@ -82,9 +83,8 @@ class LargeLanguageModel:
     def invoke(
         self,
         question: str,
-        context: list[Document] | Document,
         **extra_args_system_prompt: str,
-    ) -> list[Document] | Document:
+    ) -> Document:
         """Geração da resposta ao questionamento em questão.
 
         Parameters
@@ -92,31 +92,15 @@ class LargeLanguageModel:
             question (str):
                 Questionamento
 
-            context (list[Document] | Document):
-                Contexto para acrescesmo de informação para a geração da resposta
-
             **extra_args_system_prompt (str):
                 Argumentos extras para o system prompt
 
         Returns
         -------
-            list[Document] | Document:
-                Resposta gerada pelo modelo, podendo ser uma lista de respostas ou uma
-                resposta única
+            Document:
+                Resposta gerada pelo modelo
         """
-        if isinstance(context, list):
-            list_answers = []
-            for doc in context:
-                answer = self.chain.invoke(
-                    {"question": question, "context": doc, **extra_args_system_prompt}
-                )
-                list_answers.append(answer)
-
-            return list_answers
-
-        return self.chain.invoke(
-            {"question": question, "context": context, **extra_args_system_prompt}
-        )
+        return self.chain.invoke({"question": question, **extra_args_system_prompt})
 
 
 @dataclass
@@ -232,7 +216,7 @@ def create_generate() -> LargeLanguageModel:
     -------
     Generate: objeto para geração de respostas.
     """
-    return None  # LargeLanguageModel()
+    return LargeLanguageModel(system_instruction=GENERATE)
 
 
 def create_verify_code() -> LargeLanguageModel:
