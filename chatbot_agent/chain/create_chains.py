@@ -1,5 +1,6 @@
 """Script responsável por instanciar os LLMs/chains a serem utilizados na aplicação."""
 
+import logging
 import os
 from dataclasses import dataclass, field
 from enum import Enum
@@ -23,6 +24,8 @@ from chatbot_agent.instructions.system_message_template import (
     PYTHON_VERIFY,
 )
 from chatbot_agent.structured_output.models import DocumentsGraderAnswer
+
+logger = logging.getLogger(__name__)
 
 
 class RetrieverOptions(Enum):

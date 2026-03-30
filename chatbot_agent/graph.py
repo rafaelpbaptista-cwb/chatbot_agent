@@ -1,5 +1,6 @@
 """Script 'principal' onde é construído a aplicação em si."""
 
+import concurrent.futures
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -70,16 +71,25 @@ def grade_python_node(state: GraphState) -> dict[str, Any]:
     logger.info("")
     logger.info("--- GRADE PYTHON CONTEXT ---")
 
-    list_valid_documents = []
-    for code in state.get("codes", []):
-        response = python_grader.invoke(
-            question=state["question"], code=code, documentation=state["documents"]
-        )
+    with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+        futures = [
+            executor.submit(
+                python_grader.invoke,
+                question=state["question"],
+                code=code,
+                documentation=state["documents"],
+            )
+            for code in state.get("codes", [])
+        ]
 
-        if response.answer:
-            list_valid_documents.append(response.analyzed_document)
+        list_valid_documents = []
+        for future in concurrent.futures.as_completed(futures):
+            response = future.result()
 
-    return {"codes": list_valid_documents}
+            if response.answer:
+                list_valid_documents.append(response.analyzed_document)
+
+        return {"codes": list_valid_documents}
 
 
 def grade_html_node(state: GraphState) -> dict[str, Any]:
@@ -99,14 +109,24 @@ def grade_html_node(state: GraphState) -> dict[str, Any]:
     logger.info("")
     logger.info("--- GRADE HTML CONTEXT ---")
 
-    list_valid_documents = []
-    for doc in state["documents"]:
-        response = html_grader.invoke(question=state["question"], documentation=doc)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+        futures = [
+            executor.submit(
+                html_grader.invoke,
+                question=state["question"],
+                documentation=doc,
+            )
+            for doc in state["documents"]
+        ]
 
-        if response.answer:
-            list_valid_documents.append(response.analyzed_document)
+        list_valid_documents = []
+        for future in concurrent.futures.as_completed(futures):
+            response = future.result()
 
-    return {"documents": list_valid_documents}
+            if response.answer:
+                list_valid_documents.append(response.analyzed_document)
+
+        return {"documents": list_valid_documents}
 
 
 def generate_node(state: GraphState) -> dict[str, Any]:
@@ -197,7 +217,6 @@ class Application:
 
         self.workflow.add_edge(START, RETRIEVER_HTML)
         self.workflow.add_edge(RETRIEVER_HTML, GRADE_HTML_DOCUMENTS)
-        self.workflow.add_edge(GRADE_HTML_DOCUMENTS, GENERATE)
         self.workflow.add_edge(RETRIEVER_PYTHON, GRADE_PYTHON_DOCUMENTS)
         self.workflow.add_edge(GRADE_PYTHON_DOCUMENTS, GENERATE)
         self.workflow.add_edge(GENERATE, END)
