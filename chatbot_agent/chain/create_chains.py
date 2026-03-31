@@ -15,6 +15,7 @@ from langchain_core.prompts import (
     SystemMessagePromptTemplate,
 )
 from langchain_core.runnables.base import RunnableSequence
+from langchain_core.runnables.config import RunnableConfig
 from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
 
 from chatbot_agent.instructions.system_message_template import (
@@ -104,6 +105,29 @@ class LargeLanguageModel:
                 Resposta gerada pelo modelo
         """
         return self.chain.invoke({"question": question, **extra_args_system_prompt})
+
+    async def batch(
+        self,
+        inputs: list[dict[str, Document]],
+        config: RunnableConfig = None,
+    ) -> list[Document]:
+        """
+        Realiza a execução em lote de questionamentos para a LLM.
+
+        Parameters
+        ----------
+        inputs (list[dict[str, Document]]):
+            Lista de dicionários com os argumentos para cada execução em lote.
+
+        config (RunnableConfig, optional):
+            Configurações para a execução em lote. Defaults to None.
+
+        Returns
+        -------
+        list[Document]:
+            Lista de documentos que representam as respostas geradas para cada input.
+        """
+        return await self.chain.abatch(inputs, config=config)
 
 
 @dataclass

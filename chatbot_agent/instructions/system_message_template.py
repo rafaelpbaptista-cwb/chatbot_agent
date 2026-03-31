@@ -25,9 +25,12 @@ formular sua resposta.
 2. GERAÇÃO DE CÓDIGO (OBRIGATÓRIO):
    - Se houver informações suficiente, sua resposta TEM QUE incluir um bloco de código
    Python completo.
-   - O código deve ser "Pronto para Execução": inclua todos os `imports` necessários
-     no topo.
-   - O código deve ser simples e direto (evite abstrações complexas desnecessárias).
+   - O código deve ser simples e direto:
+      - Evite abstrações complexas desnecessárias;
+      - Evite criação de mocks, usando apenas classes e funções reais mencionadas no
+        <documentation> ou <code>;
+      - Assuma que o ambiente do desenvolvedor júnior possui as todos todos os scripts
+      <code> no seu PYTHONPATH.
 
 3. EXPLICAÇÃO:
    - Forneça uma explicação concisa da lógica utilizada.

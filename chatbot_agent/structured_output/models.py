@@ -11,13 +11,26 @@ from pydantic import BaseModel, Field
 
 
 class DocumentsGraderAnswer(BaseModel):
-    """Classe estruturada usada para retornar resposta do RagGrader."""
+    """Classe estruturada usada para retornar resposta do RagGrader.
 
-    answer: bool = Field(description="Resposta podendo ser True ou False")
-    explanation: str = Field(
-        description="Explicação (máximo 100 caracteres) sucinta do score"
+    Classe DTO contendo as seguintes propriedades:
+    - answer: bool
+    - explanation: str
+    - analyzed_document: Document
+    """
+
+    answer: bool = Field(
+        description="""Propriedade <answer> que deve conter a resposta podendo ser True
+        ou False"""
     )
-    analyzed_document: Document = Field(description="Documento Analisado")
+    explanation: str = Field(
+        description="""Propriedade <explanation> que deve conter a explicação, com no
+        máximo 100 caracteres, sucinta do score"""
+    )
+    analyzed_document: Document = Field(
+        description="""Propriedade <analyzed_document> que deve conter o documento
+        analisado"""
+    )
 
 
 class GraphState(TypedDict):
