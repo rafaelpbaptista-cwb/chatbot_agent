@@ -1,11 +1,12 @@
 """Script 'principal' onde é construído a aplicação em si."""
 
-import concurrent.futures
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from langchain.messages import HumanMessage
+from langchain_core.runnables.config import RunnableConfig
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 
@@ -40,7 +41,7 @@ def retriever_python_node(state: GraphState) -> dict[str, Any]:
     logger.info("--- RETRIEVER PYTHON---")
 
     return {
-        "codes": retriever_html.invoke(state["question"]),
+        "codes": retriever_python.invoke(state.question),
     }
 
 
@@ -50,11 +51,11 @@ def retriever_html_node(state: GraphState) -> dict[str, Any]:
     logger.info("--- RETRIEVER HTML---")
 
     return {
-        "documents": retriever_html.invoke(state["question"]),
+        "documents": retriever_html.invoke(state.question),
     }
 
 
-def grade_python_node(state: GraphState) -> dict[str, Any]:
+def grade_python_node(state: GraphState, config: RunnableConfig) -> dict[str, Any]:
     """Retorna um node que executa a etapa de avaliação de RAG python.
 
     Retorna todos os documentos com answer True, que representam o contexto mais
@@ -71,28 +72,25 @@ def grade_python_node(state: GraphState) -> dict[str, Any]:
     logger.info("")
     logger.info("--- GRADE PYTHON CONTEXT ---")
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
-        futures = [
-            executor.submit(
-                python_grader.invoke,
-                question=state["question"],
-                code=code,
-                documentation=state["documents"],
-            )
-            for code in state.get("codes", [])
-        ]
+    inputs = [
+        {
+            "question": state.question,
+            "code": code,
+            "documentation": state.documents,
+        }
+        for code in state.codes
+    ]
 
-        list_valid_documents = []
-        for future in concurrent.futures.as_completed(futures):
-            response = future.result()
+    validated_codes = [
+        resposta.analyzed_document
+        for resposta in python_grader.batch(inputs, config)
+        if resposta.answer
+    ]
 
-            if response.answer:
-                list_valid_documents.append(response.analyzed_document)
-
-        return {"codes": list_valid_documents}
+    return {"codes": validated_codes}
 
 
-def grade_html_node(state: GraphState) -> dict[str, Any]:
+def grade_html_node(state: GraphState, config: RunnableConfig) -> dict[str, Any]:
     """Retorna um node que executa a etapa de avaliação de RAG HTML.
 
     Retorna todos os documentos com answer True, que representam o contexto mais
@@ -109,24 +107,21 @@ def grade_html_node(state: GraphState) -> dict[str, Any]:
     logger.info("")
     logger.info("--- GRADE HTML CONTEXT ---")
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
-        futures = [
-            executor.submit(
-                html_grader.invoke,
-                question=state["question"],
-                documentation=doc,
-            )
-            for doc in state["documents"]
-        ]
+    inputs = [
+        {
+            "question": state.question,
+            "documentation": doc,
+        }
+        for doc in state.documents
+    ]
 
-        list_valid_documents = []
-        for future in concurrent.futures.as_completed(futures):
-            response = future.result()
+    validated_documents = [
+        resposta.analyzed_document
+        for resposta in html_grader.batch(inputs, config)
+        if resposta.answer
+    ]
 
-            if response.answer:
-                list_valid_documents.append(response.analyzed_document)
-
-        return {"documents": list_valid_documents}
+    return {"documents": validated_documents}
 
 
 def generate_node(state: GraphState) -> dict[str, Any]:
@@ -144,10 +139,13 @@ def generate_node(state: GraphState) -> dict[str, Any]:
     logger.info("--- GENERATE ---")
 
     response = generate.invoke(
-        question=state["question"],
-        code=state.get("codes"),
-        documentation=state.get("documents"),
+        question=state.question,
+        code=state.codes,
+        documentation=state.documents,
+        history=state.history,
     )
+
+    state.history.extend([HumanMessage(content=state.question), response])
 
     return {"response": response.content}
 
@@ -170,7 +168,7 @@ def decide_need_code(state: GraphState) -> bool:
     logger.info("--- DECIDE NEED CODE ---")
 
     response = verify_code.invoke(
-        question=state["question"], documentation=state["documents"]
+        question=state.question, documentation=state.documents
     )
 
     return response.answer

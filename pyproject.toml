@@ -27,7 +27,6 @@ dependencies = [
 log_cli = true
 log_cli_level = "INFO"
 log_cli_format = "%(asctime)s [%(levelname)s] %(message)s"
-date_format = "%Y-%m-%d %H:%M:%S"
 
 
 

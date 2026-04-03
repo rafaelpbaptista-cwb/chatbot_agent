@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 
 from .chain.create_chains import (
     create_generate,
+    create_generate_history,
     create_html_grader,
     create_python_grader,
     create_query_retriever,
@@ -29,6 +30,7 @@ __all__ = [
     "VERIFY_CODE",
     "GraphState",
     "create_generate",
+    "create_generate_history",
     "create_html_grader",
     "create_python_grader",
     "create_query_retriever",

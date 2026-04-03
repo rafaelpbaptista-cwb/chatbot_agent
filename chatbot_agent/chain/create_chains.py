@@ -11,6 +11,7 @@ from langchain_core.documents import Document
 from langchain_core.prompts import (
     ChatPromptTemplate,
     HumanMessagePromptTemplate,
+    MessagesPlaceholder,
     PromptTemplate,
     SystemMessagePromptTemplate,
 )
@@ -86,27 +87,23 @@ class LargeLanguageModel:
 
     def invoke(
         self,
-        question: str,
-        **extra_args_system_prompt: str,
+        **kwargs: str,
     ) -> Document:
         """Geração da resposta ao questionamento em questão.
 
         Parameters
         ----------
-            question (str):
-                Questionamento
-
-            **extra_args_system_prompt (str):
-                Argumentos extras para o system prompt
+            **kwargs (str):
+                Argumentos para a a geração da resposta
 
         Returns
         -------
             Document:
                 Resposta gerada pelo modelo
         """
-        return self.chain.invoke({"question": question, **extra_args_system_prompt})
+        return self.chain.invoke(input={**kwargs})
 
-    async def batch(
+    def batch(
         self,
         inputs: list[dict[str, Document]],
         config: RunnableConfig = None,
@@ -127,7 +124,31 @@ class LargeLanguageModel:
         list[Document]:
             Lista de documentos que representam as respostas geradas para cada input.
         """
-        return await self.chain.abatch(inputs, config=config)
+        return self.chain.batch(inputs, config=config)
+
+
+@dataclass
+class LargeLanguageModelHistory(LargeLanguageModel):
+    """Extenção da classe LargeLanguageModel.
+
+    Acrescenta o comportamento de histórico de mensagens.
+    """
+
+    def __post_init__(self) -> None:
+        """Adiciona o comportamento de criação do chain com histórico de mensagens."""
+        super().__post_init__()
+
+        self.chain = (
+            ChatPromptTemplate(
+                input_variables=["context", "question", "history"],
+                messages=[
+                    self.system_prompt_template,
+                    MessagesPlaceholder(variable_name="history"),
+                    self.human_prompt_template,
+                ],
+            )
+            | self.llm
+        )
 
 
 @dataclass
@@ -244,6 +265,16 @@ def create_generate() -> LargeLanguageModel:
     Generate: objeto para geração de respostas.
     """
     return LargeLanguageModel(system_instruction=GENERATE)
+
+
+def create_generate_history() -> LargeLanguageModelHistory:
+    """Cria um objeto para geração de respostas com histórico de mensagens.
+
+    Returns
+    -------
+    LargeLanguageModelHistory: objeto para geração de respostas com histórico.
+    """
+    return LargeLanguageModelHistory(system_instruction=GENERATE)
 
 
 def create_verify_code() -> LargeLanguageModel:

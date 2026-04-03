@@ -20,8 +20,7 @@ def python_grader() -> LargeLanguageModel:
     return create_python_grader()
 
 
-@pytest.mark.asyncio
-async def test_html_grader_batch(html_grader: LargeLanguageModel) -> None:
+def test_html_grader_batch(html_grader: LargeLanguageModel) -> None:
     inputs = [
         {
             "question": "Como se conectar na base de dados histórico oficial?",
@@ -54,7 +53,7 @@ async def test_html_grader_batch(html_grader: LargeLanguageModel) -> None:
         },
     ]
 
-    response = await html_grader.batch(inputs)
+    response = html_grader.batch(inputs)
     assert len(response) == 2
 
     for index, resposta in enumerate(response):
@@ -66,8 +65,7 @@ async def test_html_grader_batch(html_grader: LargeLanguageModel) -> None:
         logger.info("-" * 50)
 
 
-@pytest.mark.asyncio
-async def test_python_grader_batch(python_grader: LargeLanguageModel) -> None:
+def test_python_grader_batch(python_grader: LargeLanguageModel) -> None:
     """Testa se o invoke do RagGrader retorna respostas quando chamado com uma pergunta e contextos."""
 
     inputs = [
@@ -125,7 +123,7 @@ async def test_python_grader_batch(python_grader: LargeLanguageModel) -> None:
         },
     ]
 
-    response = await python_grader.batch(inputs)
+    response = python_grader.batch(inputs)
     assert len(response) == 2
 
     for index, resposta in enumerate(response):

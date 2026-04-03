@@ -4,8 +4,7 @@ Documentos aqui contidos são usados nas resposta dos chains e
 outros guardam o estado do aplicação Graph.
 """
 
-from typing import TypedDict
-
+from langchain_classic.schema import BaseMessage
 from langchain_core.documents import Document
 from pydantic import BaseModel, Field
 
@@ -16,7 +15,7 @@ class DocumentsGraderAnswer(BaseModel):
     Classe DTO contendo as seguintes propriedades:
     - answer: bool
     - explanation: str
-    - analyzed_document: Document
+    - analyzed_document: dict
     """
 
     answer: bool = Field(
@@ -27,15 +26,17 @@ class DocumentsGraderAnswer(BaseModel):
         description="""Propriedade <explanation> que deve conter a explicação, com no
         máximo 100 caracteres, sucinta do score"""
     )
-    analyzed_document: Document = Field(
-        description="""Propriedade <analyzed_document> que deve conter o documento
+    analyzed_document: dict = Field(
+        description="""Propriedade <dict> que deve conter o documento
         analisado"""
     )
 
 
-class GraphState(TypedDict):
+class GraphState(BaseModel):
     """Classe que representa o estado na nossa aplicação (Graph)."""
 
-    question: str
-    response: str
-    documents: list[str]
+    question: str = Field(default=None)
+    response: str = Field(default=None)
+    documents: list[Document] = Field(default_factory=list)
+    codes: list[Document] = Field(default_factory=list)
+    history: list[BaseMessage] = Field(default_factory=list)
