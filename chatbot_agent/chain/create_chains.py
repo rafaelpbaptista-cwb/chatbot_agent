@@ -47,7 +47,7 @@ class LargeLanguageModel:
 
     llm: ChatGoogleGenerativeAI = field(
         default_factory=lambda: ChatGoogleGenerativeAI(
-            model=os.getenv("LLM_MODEL"), temperature=0
+            model=os.getenv("LLM_MODEL"), temperature=0, timeout=20, max_retries=1
         )
     )
 
@@ -124,7 +124,7 @@ class LargeLanguageModel:
         list[Document]:
             Lista de documentos que representam as respostas geradas para cada input.
         """
-        return self.chain.batch(inputs, config=config)
+        return self.chain.batch(inputs, config=config, return_exceptions=True)
 
 
 @dataclass

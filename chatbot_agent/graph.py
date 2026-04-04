@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+import httpx
 from langchain.messages import HumanMessage
 from langchain_core.runnables.config import RunnableConfig
 from langgraph.graph import END, START, StateGraph
@@ -16,13 +17,12 @@ from chatbot_agent import (
     RETRIEVER_HTML,
     RETRIEVER_PYTHON,
     GraphState,
-    create_generate,
     create_html_grader,
     create_python_grader,
     create_query_retriever,
     create_verify_code,
 )
-from chatbot_agent.chain.create_chains import RetrieverOptions
+from chatbot_agent.chain.create_chains import RetrieverOptions, create_generate_history
 from chatbot_agent.consts import GRADE_PYTHON_DOCUMENTS
 
 logger = logging.getLogger(__name__)
@@ -31,8 +31,10 @@ retriever_html = create_query_retriever(RetrieverOptions.HTML)
 retriever_python = create_query_retriever(RetrieverOptions.PYTHON)
 html_grader = create_html_grader()
 python_grader = create_python_grader()
-generate = create_generate()
+generate = create_generate_history()
 verify_code = create_verify_code()
+
+history = []
 
 
 def retriever_python_node(state: GraphState) -> dict[str, Any]:
@@ -81,11 +83,26 @@ def grade_python_node(state: GraphState, config: RunnableConfig) -> dict[str, An
         for code in state.codes
     ]
 
-    validated_codes = [
-        resposta.analyzed_document
-        for resposta in python_grader.batch(inputs, config)
-        if resposta.answer
-    ]
+    validated_codes = []
+
+    count_rejected_codes = 0
+    list_codes = python_grader.batch(inputs, config)
+    for resposta in list_codes:
+        if (
+            hasattr(resposta, "answer")
+            and resposta.answer
+            and hasattr(resposta, "analyzed_document")
+            and "page_content" in resposta.analyzed_document
+        ):
+            validated_codes.append(resposta.analyzed_document)
+        else:
+            count_rejected_codes += 1
+
+    logger.info("Codes rejeitados: %d", count_rejected_codes)
+    logger.info(
+        "Percentual de codes rejeitados: %.2f%%",
+        (count_rejected_codes / len(inputs)) * 100,
+    )
 
     return {"codes": validated_codes}
 
@@ -115,11 +132,26 @@ def grade_html_node(state: GraphState, config: RunnableConfig) -> dict[str, Any]
         for doc in state.documents
     ]
 
-    validated_documents = [
-        resposta.analyzed_document
-        for resposta in html_grader.batch(inputs, config)
-        if resposta.answer
-    ]
+    validated_documents = []
+
+    count_rejected_docs = 0
+    list_documents = html_grader.batch(inputs, config)
+    for resposta in list_documents:
+        if (
+            hasattr(resposta, "answer")
+            and resposta.answer
+            and hasattr(resposta, "analyzed_document")
+            and "page_content" in resposta.analyzed_document
+        ):
+            validated_documents.append(resposta.analyzed_document)
+        else:
+            count_rejected_docs += 1
+
+    logger.info("Documentos rejeitados: %d", count_rejected_docs)
+    logger.info(
+        "Percentual de documentos rejeitados: %.2f%%",
+        (count_rejected_docs / len(inputs)) * 100,
+    )
 
     return {"documents": validated_documents}
 
@@ -142,12 +174,14 @@ def generate_node(state: GraphState) -> dict[str, Any]:
         question=state.question,
         code=state.codes,
         documentation=state.documents,
-        history=state.history,
+        history=history,
     )
 
-    state.history.extend([HumanMessage(content=state.question), response])
+    history.extend([HumanMessage(content=state.question), response])
 
-    return {"response": response.content}
+    return {
+        "response": response.content,
+    }
 
 
 def decide_need_code(state: GraphState) -> bool:
@@ -165,13 +199,19 @@ def decide_need_code(state: GraphState) -> bool:
         bool:
             True se é necessário obter código puthon e False caso contrário.
     """
+    logger.info("")
     logger.info("--- DECIDE NEED CODE ---")
 
-    response = verify_code.invoke(
-        question=state.question, documentation=state.documents
-    )
+    try:
+        response = verify_code.invoke(
+            question=state.question, documentation=state.documents
+        )
+    except httpx.TimeoutException:
+        logger.exception("Timeout ao invocar verify_code")
 
-    return response.answer
+        return False
+    else:
+        return response.answer
 
 
 @dataclass

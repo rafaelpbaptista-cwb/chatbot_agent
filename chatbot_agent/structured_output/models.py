@@ -19,16 +19,19 @@ class DocumentsGraderAnswer(BaseModel):
     """
 
     answer: bool = Field(
+        default_factory=bool,
         description="""Propriedade <answer> que deve conter a resposta podendo ser True
-        ou False"""
+        ou False""",
     )
     explanation: str = Field(
+        default_factory=str,
         description="""Propriedade <explanation> que deve conter a explicação, com no
-        máximo 100 caracteres, sucinta do score"""
+        máximo 100 caracteres, sucinta do score""",
     )
     analyzed_document: dict = Field(
+        default_factory=dict,
         description="""Propriedade <dict> que deve conter o documento
-        analisado"""
+        analisado""",
     )
 
 

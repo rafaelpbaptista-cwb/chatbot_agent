@@ -32,6 +32,6 @@ def get_response(contents: str, _: TextInput, __: FileInput) -> str:
     return chat_bot.invoke(question=contents)
 
 
-chat_ui = pn.chat.ChatInterface(callback=get_response)
+chat_ui = pn.chat.ChatInterface(callback=get_response, callback_exception="verbose")
 chat_ui.send("Pergunte-me qualquer coisa!", user="Assistant", respond=False)
 chat_ui.show()
