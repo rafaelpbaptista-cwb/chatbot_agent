@@ -9,13 +9,13 @@ from .chain.create_chains import (
     create_python_grader,
     create_query_retriever,
     create_verify_code,
+    create_verify_documentation,
 )
 from .consts import (
     GENERATE,
     GRADE_HTML_DOCUMENTS,
     RETRIEVER_HTML,
     RETRIEVER_PYTHON,
-    VERIFY_CODE,
 )
 from .structured_output.models import GraphState
 
@@ -35,4 +35,5 @@ __all__ = [
     "create_python_grader",
     "create_query_retriever",
     "create_verify_code",
+    "create_verify_documentation",
 ]

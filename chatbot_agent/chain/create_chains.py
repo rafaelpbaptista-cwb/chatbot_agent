@@ -20,6 +20,7 @@ from langchain_core.runnables.config import RunnableConfig
 from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
 
 from chatbot_agent.instructions.system_message_template import (
+    DOCUMENTATION_VERIFY,
     GENERATE,
     HTML_GRADER,
     PYTHON_GRADER,
@@ -79,7 +80,6 @@ class LargeLanguageModel:
 
         self.chain = (
             ChatPromptTemplate(
-                input_variables=["context", "question"],
                 messages=[self.system_prompt_template, self.human_prompt_template],
             )
             | self.llm
@@ -140,7 +140,6 @@ class LargeLanguageModelHistory(LargeLanguageModel):
 
         self.chain = (
             ChatPromptTemplate(
-                input_variables=["context", "question", "history"],
                 messages=[
                     self.system_prompt_template,
                     MessagesPlaceholder(variable_name="history"),
@@ -288,4 +287,18 @@ def create_verify_code() -> LargeLanguageModel:
     """
     return LargeLanguageModel(
         system_instruction=PYTHON_VERIFY, structured_output=DocumentsGraderAnswer
+    )
+
+
+def create_verify_documentation() -> LargeLanguageModelHistory:
+    """Cria um objeto para avalidar necessidade de pesquisa de documentação.
+
+    Returns
+    -------
+    LargeLanguageModelHistory:
+        Objeto com a instrução de sistema para executar o avaliador de
+        necessidade de documentação
+    """
+    return LargeLanguageModelHistory(
+        system_instruction=DOCUMENTATION_VERIFY, structured_output=DocumentsGraderAnswer
     )

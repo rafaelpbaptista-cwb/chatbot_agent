@@ -109,3 +109,13 @@ Regras de Decisão:
 Com base nestas regras, a pesquisa de código fonte em Python é necessária?
 Responde apenas com True (Sim, precisa de código) ou False (Não, a documentação
 é suficiente)."""
+
+DOCUMENTATION_VERIFY = """<documentation>{documentation}</documentation>
+                          <code>{code}</code>
+
+Baseado na documentação recuperada <documentation> e <code> e no histórico de perguntas
+e respotas, avalie se há a necessidade de buscar por mais documentos para responder a
+pergunta do usuário.
+
+Responde apenas com True (Sim, precisa de mais documentação) ou False (Não, a
+documentação é suficiente)."""

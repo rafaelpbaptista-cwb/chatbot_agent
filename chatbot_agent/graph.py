@@ -21,6 +21,7 @@ from chatbot_agent import (
     create_python_grader,
     create_query_retriever,
     create_verify_code,
+    create_verify_documentation,
 )
 from chatbot_agent.chain.create_chains import RetrieverOptions, create_generate_history
 from chatbot_agent.consts import GRADE_PYTHON_DOCUMENTS
@@ -33,8 +34,11 @@ html_grader = create_html_grader()
 python_grader = create_python_grader()
 generate = create_generate_history()
 verify_code = create_verify_code()
+verify_documentation = create_verify_documentation()
 
 history = []
+last_codes = []
+last_htmls = []
 
 
 def retriever_python_node(state: GraphState) -> dict[str, Any]:
@@ -177,11 +181,38 @@ def generate_node(state: GraphState) -> dict[str, Any]:
         history=history,
     )
 
+    last_codes[:] = state.codes
+    last_htmls[:] = state.documents
     history.extend([HumanMessage(content=state.question), response])
 
     return {
         "response": response.content,
     }
+
+
+def decide_need_documentation(state: GraphState) -> bool:
+    """Verifica necessidade de recuperar docs para responder ao questionamento do user.
+
+    Parameters
+    ----------
+        state (GraphState): estado do aplicação
+
+    Returns
+    -------
+        bool: True se for necessário recuperar mais documentos, False caso contrário
+    """
+    logger.info("")
+    logger.info("--- DECIDE NEED DOCUMENTATION ---")
+
+    if not last_codes and not last_htmls:
+        return True
+
+    return verify_documentation.invoke(
+        question=state.question,
+        code=last_codes,
+        documentation=last_htmls,
+        history=history,
+    ).answer
 
 
 def decide_need_code(state: GraphState) -> bool:
@@ -239,6 +270,12 @@ class Application:
             GRADE_HTML_DOCUMENTS,
             decide_need_code,
             {True: RETRIEVER_PYTHON, False: GENERATE},
+        )
+
+        self.workflow.add_conditional_edges(
+            START,
+            decide_need_documentation,
+            {True: RETRIEVER_HTML, False: GENERATE},
         )
 
     def _add_nodes(self) -> None:
