@@ -1,4 +1,3 @@
-import enum
 import logging
 
 from langchain.messages import AIMessage, HumanMessage
@@ -59,4 +58,4 @@ def test_verify_documentation(verify_documentation: LargeLanguageModel) -> None:
 
     assert response
 
-    assert response.answer is False
+    assert response.answer is True

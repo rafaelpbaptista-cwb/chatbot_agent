@@ -39,6 +39,7 @@ class GraphState(BaseModel):
     """Classe que representa o estado na nossa aplicação (Graph)."""
 
     question: str = Field(default=None)
+    rewrited_question: str = Field(default=None)
     response: str = Field(default=None)
     documents: list[Document] = Field(default_factory=list)
     codes: list[Document] = Field(default_factory=list)

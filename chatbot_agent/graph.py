@@ -6,7 +6,8 @@ from pathlib import Path
 from typing import Any
 
 import httpx
-from langchain.messages import HumanMessage
+from google.genai.errors import ServerError
+from langchain.messages import AIMessage, HumanMessage
 from langchain_core.runnables.config import RunnableConfig
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
@@ -16,10 +17,12 @@ from chatbot_agent import (
     GRADE_HTML_DOCUMENTS,
     RETRIEVER_HTML,
     RETRIEVER_PYTHON,
+    REWRITE_QUESTION,
     GraphState,
     create_html_grader,
     create_python_grader,
     create_query_retriever,
+    create_rewrite_question_rag,
     create_verify_code,
     create_verify_documentation,
 )
@@ -35,6 +38,7 @@ python_grader = create_python_grader()
 generate = create_generate_history()
 verify_code = create_verify_code()
 verify_documentation = create_verify_documentation()
+rewrite_question = create_rewrite_question_rag()
 
 history = []
 last_codes = []
@@ -46,9 +50,13 @@ def retriever_python_node(state: GraphState) -> dict[str, Any]:
     logger.info("")
     logger.info("--- RETRIEVER PYTHON---")
 
-    return {
-        "codes": retriever_python.invoke(state.question),
-    }
+    try:
+        return {
+            "codes": retriever_python.invoke(state.rewrited_question),
+        }
+    except (httpx.TimeoutException, ServerError) as e:
+        logger.exception("Erro:", exc_info=e)
+        return {"codes": []}
 
 
 def retriever_html_node(state: GraphState) -> dict[str, Any]:
@@ -56,9 +64,13 @@ def retriever_html_node(state: GraphState) -> dict[str, Any]:
     logger.info("")
     logger.info("--- RETRIEVER HTML---")
 
-    return {
-        "documents": retriever_html.invoke(state.question),
-    }
+    try:
+        return {
+            "documents": retriever_html.invoke(state.rewrited_question),
+        }
+    except (httpx.TimeoutException, ServerError) as e:
+        logger.exception("Erro:", exc_info=e)
+        return {"documents": []}
 
 
 def grade_python_node(state: GraphState, config: RunnableConfig) -> dict[str, Any]:
@@ -77,6 +89,10 @@ def grade_python_node(state: GraphState, config: RunnableConfig) -> dict[str, An
     """
     logger.info("")
     logger.info("--- GRADE PYTHON CONTEXT ---")
+
+    if not state.codes:
+        logger.info("Nenhum código para avaliar")
+        return {"codes": []}
 
     inputs = [
         {
@@ -128,6 +144,10 @@ def grade_html_node(state: GraphState, config: RunnableConfig) -> dict[str, Any]
     logger.info("")
     logger.info("--- GRADE HTML CONTEXT ---")
 
+    if not state.documents:
+        logger.info("Nenhum documento HTML para avaliar")
+        return {"documents": []}
+
     inputs = [
         {
             "question": state.question,
@@ -174,15 +194,34 @@ def generate_node(state: GraphState) -> dict[str, Any]:
     logger.info("")
     logger.info("--- GENERATE ---")
 
-    response = generate.invoke(
-        question=state.question,
-        code=state.codes,
-        documentation=state.documents,
-        history=history,
-    )
+    retries = 0
+    max_retries = 3
+    while retries < max_retries:
+        try:
+            response = generate.invoke(
+                question=state.question,
+                code=state.codes,
+                documentation=state.documents,
+                history=history,
+            )
+
+            break
+        except Exception as e:
+            retries += 1
+            logger.exception(
+                "Erro ao gerar resposta, tentando novamente... (tentativa %d)",
+                retries,
+                exc_info=e,
+            )
+
+            response = AIMessage(
+                content="""Desculpe, estou tendo dificuldades para gerar uma resposta no
+                momento. Por favor, tente novamente mais tarde."""
+            )
 
     last_codes[:] = state.codes
     last_htmls[:] = state.documents
+
     history.extend([HumanMessage(content=state.question), response])
 
     return {
@@ -207,12 +246,41 @@ def decide_need_documentation(state: GraphState) -> bool:
     if not last_codes and not last_htmls:
         return True
 
-    return verify_documentation.invoke(
+    response = verify_documentation.invoke(
         question=state.question,
         code=last_codes,
         documentation=last_htmls,
         history=history,
-    ).answer
+    )
+
+    logger.info("Justificativa: %s", response.explanation)
+
+    return response.answer
+
+
+def rewrite_question_rag_node(state: GraphState) -> dict[str, Any]:
+    """Reescreve a pergunta do usuário para otimizar a busca por documentos.
+
+    Parameters
+    ----------
+        state (GraphState): estado do aplicação
+
+    Returns
+    -------
+        dict[str, Any]: node com a pergunta reescrita para otimizar a busca por
+        documentos.
+    """
+    logger.info("")
+    logger.info("--- REWRITE QUESTION RAG ---")
+
+    if history:
+        return {
+            "rewrited_question": rewrite_question.invoke(
+                question=state.question, history=history
+            ).content
+        }
+
+    return {"rewrited_question": state.question}
 
 
 def decide_need_code(state: GraphState) -> bool:
@@ -233,12 +301,15 @@ def decide_need_code(state: GraphState) -> bool:
     logger.info("")
     logger.info("--- DECIDE NEED CODE ---")
 
+    if not state.documents:
+        return True
+
     try:
         response = verify_code.invoke(
             question=state.question, documentation=state.documents
         )
-    except httpx.TimeoutException:
-        logger.exception("Timeout ao invocar verify_code")
+    except (httpx.TimeoutException, ServerError) as e:
+        logger.exception("Erro:", exc_info=e)
 
         return False
     else:
@@ -275,12 +346,13 @@ class Application:
         self.workflow.add_conditional_edges(
             START,
             decide_need_documentation,
-            {True: RETRIEVER_HTML, False: GENERATE},
+            {True: REWRITE_QUESTION, False: GENERATE},
         )
 
     def _add_nodes(self) -> None:
         logger.info("Adicionando nodes ao graph")
 
+        self.workflow.add_node(REWRITE_QUESTION, rewrite_question_rag_node)
         self.workflow.add_node(RETRIEVER_HTML, retriever_html_node)
         self.workflow.add_node(RETRIEVER_PYTHON, retriever_python_node)
         self.workflow.add_node(GRADE_HTML_DOCUMENTS, grade_html_node)
@@ -290,7 +362,7 @@ class Application:
     def _add_nodes_sequence(self) -> None:
         logger.info("Adicionando sequencia do nodes do graph")
 
-        self.workflow.add_edge(START, RETRIEVER_HTML)
+        self.workflow.add_edge(REWRITE_QUESTION, RETRIEVER_HTML)
         self.workflow.add_edge(RETRIEVER_HTML, GRADE_HTML_DOCUMENTS)
         self.workflow.add_edge(RETRIEVER_PYTHON, GRADE_PYTHON_DOCUMENTS)
         self.workflow.add_edge(GRADE_PYTHON_DOCUMENTS, GENERATE)

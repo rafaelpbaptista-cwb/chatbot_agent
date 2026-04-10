@@ -25,10 +25,13 @@ from chatbot_agent.instructions.system_message_template import (
     HTML_GRADER,
     PYTHON_GRADER,
     PYTHON_VERIFY,
+    REWRITE_QUESTION_RAG,
 )
 from chatbot_agent.structured_output.models import DocumentsGraderAnswer
 
 logger = logging.getLogger(__name__)
+
+TIMEOUT = 15
 
 
 class RetrieverOptions(Enum):
@@ -48,7 +51,7 @@ class LargeLanguageModel:
 
     llm: ChatGoogleGenerativeAI = field(
         default_factory=lambda: ChatGoogleGenerativeAI(
-            model=os.getenv("LLM_MODEL"), temperature=0, timeout=20, max_retries=1
+            model=os.getenv("LLM_MODEL"), temperature=0, timeout=TIMEOUT, max_retries=1
         )
     )
 
@@ -193,7 +196,12 @@ class QueryRetriever:
             retriever=self.client_vector_db.as_retriever(
                 search_kwargs={"filter": {"type_data": self.type_data_query.value}}
             ),
-            llm=ChatGoogleGenerativeAI(model=os.getenv("LLM_MODEL"), temperature=0),
+            llm=ChatGoogleGenerativeAI(
+                model=os.getenv("LLM_MODEL"),
+                temperature=0,
+                timeout=TIMEOUT,
+                max_retries=1,
+            ),
         )
 
     def invoke(self, prompt: str) -> list[Document]:
@@ -301,4 +309,18 @@ def create_verify_documentation() -> LargeLanguageModelHistory:
     """
     return LargeLanguageModelHistory(
         system_instruction=DOCUMENTATION_VERIFY, structured_output=DocumentsGraderAnswer
+    )
+
+
+def create_rewrite_question_rag() -> LargeLanguageModelHistory:
+    """Cria um objeto para reescrever a pergunta do usuário para otimização de buscas.
+
+    Returns
+    -------
+    LargeLanguageModelHistory:
+        Objeto com a instrução de sistema para executar o otimizador de perguntas para
+        RAG
+    """
+    return LargeLanguageModelHistory(
+        system_instruction=REWRITE_QUESTION_RAG,
     )
