@@ -3,6 +3,7 @@
 from dotenv import load_dotenv
 
 from .chain.create_chains import (
+    LIMITE_TOKENS_INPUT,
     create_generate,
     create_generate_history,
     create_html_grader,
@@ -27,6 +28,7 @@ load_dotenv()
 __all__ = [
     "GENERATE",
     "GRADE_HTML_DOCUMENTS",
+    "LIMITE_TOKENS_INPUT",
     "RETRIEVER_HTML",
     "RETRIEVER_PYTHON",
     "REWRITE_QUESTION",

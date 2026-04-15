@@ -1,20 +1,22 @@
 """Script 'principal' onde é construído a aplicação em si."""
 
+from __future__ import annotations
+
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import httpx
 from google.genai.errors import ServerError
 from langchain.messages import AIMessage, HumanMessage
-from langchain_core.runnables.config import RunnableConfig
+from langchain_core.messages import trim_messages
 from langgraph.graph import END, START, StateGraph
-from langgraph.graph.state import CompiledStateGraph
 
 from chatbot_agent import (
     GENERATE,
     GRADE_HTML_DOCUMENTS,
+    LIMITE_TOKENS_INPUT,
     RETRIEVER_HTML,
     RETRIEVER_PYTHON,
     REWRITE_QUESTION,
@@ -27,7 +29,11 @@ from chatbot_agent import (
     create_verify_documentation,
 )
 from chatbot_agent.chain.create_chains import RetrieverOptions, create_generate_history
-from chatbot_agent.consts import GRADE_PYTHON_DOCUMENTS
+from chatbot_agent.consts import GRADE_PYTHON_DOCUMENTS, RELOAD_RAGS_MEMORY
+
+if TYPE_CHECKING:
+    from langchain_core.runnables.config import RunnableConfig
+    from langgraph.graph.state import CompiledStateGraph
 
 logger = logging.getLogger(__name__)
 
@@ -223,6 +229,11 @@ def generate_node(state: GraphState) -> dict[str, Any]:
     last_htmls[:] = state.documents
 
     history.extend([HumanMessage(content=state.question), response])
+    history[:] = trim_messages(
+        messages=history,
+        max_tokens=LIMITE_TOKENS_INPUT * 0.7,
+        token_counter=generate.llm.get_num_tokens_from_messages,
+    )
 
     return {
         "response": response.content,
@@ -246,14 +257,18 @@ def decide_need_documentation(state: GraphState) -> bool:
     if not last_codes and not last_htmls:
         return True
 
-    response = verify_documentation.invoke(
-        question=state.question,
-        code=last_codes,
-        documentation=last_htmls,
-        history=history,
-    )
+    try:
+        response = verify_documentation.invoke(
+            question=state.question,
+            code=last_codes,
+            documentation=last_htmls,
+            history=history,
+        )
 
-    logger.info("Justificativa: %s", response.explanation)
+        logger.info("Justificativa: %s", response.explanation)
+    except (httpx.TimeoutException, ServerError) as e:
+        logger.exception("Erro:", exc_info=e)
+        return True
 
     return response.answer
 
@@ -281,6 +296,23 @@ def rewrite_question_rag_node(state: GraphState) -> dict[str, Any]:
         }
 
     return {"rewrited_question": state.question}
+
+
+def reload_rags_memory_node(_: GraphState) -> dict[str, Any]:
+    """Recarrega as RAGS do prompt anterior.
+
+    Parameters
+    ----------
+        _ (GraphState): estado do aplicação
+
+    Returns
+    -------
+        dict[str, Any]: node com os códigos e documentos HTML mais recentes
+    """
+    logger.info("")
+    logger.info("--- RELOAD RAGS MEMORY ---")
+
+    return {"codes": last_codes, "documents": last_htmls}
 
 
 def decide_need_code(state: GraphState) -> bool:
@@ -346,12 +378,13 @@ class Application:
         self.workflow.add_conditional_edges(
             START,
             decide_need_documentation,
-            {True: REWRITE_QUESTION, False: GENERATE},
+            {True: REWRITE_QUESTION, False: RELOAD_RAGS_MEMORY},
         )
 
     def _add_nodes(self) -> None:
         logger.info("Adicionando nodes ao graph")
 
+        self.workflow.add_node(RELOAD_RAGS_MEMORY, reload_rags_memory_node)
         self.workflow.add_node(REWRITE_QUESTION, rewrite_question_rag_node)
         self.workflow.add_node(RETRIEVER_HTML, retriever_html_node)
         self.workflow.add_node(RETRIEVER_PYTHON, retriever_python_node)
@@ -366,6 +399,7 @@ class Application:
         self.workflow.add_edge(RETRIEVER_HTML, GRADE_HTML_DOCUMENTS)
         self.workflow.add_edge(RETRIEVER_PYTHON, GRADE_PYTHON_DOCUMENTS)
         self.workflow.add_edge(GRADE_PYTHON_DOCUMENTS, GENERATE)
+        self.workflow.add_edge(RELOAD_RAGS_MEMORY, GENERATE)
         self.workflow.add_edge(GENERATE, END)
 
     def generate_image(self) -> None:

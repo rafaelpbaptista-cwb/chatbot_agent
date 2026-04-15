@@ -33,6 +33,9 @@ logger = logging.getLogger(__name__)
 
 TIMEOUT = 15
 
+# Informação retirada de https://ai.google.dev/gemini-api/docs/models/gemini-2.5-flash?hl=pt-br
+LIMITE_TOKENS_INPUT = 1048576
+
 
 class RetrieverOptions(Enum):
     """Enum com opções as opções válidas para o Retriever."""
