@@ -31,7 +31,7 @@ from chatbot_agent.structured_output.models import DocumentsGraderAnswer
 
 logger = logging.getLogger(__name__)
 
-TIMEOUT = 15
+TIMEOUT = 30
 
 # Informação retirada de https://ai.google.dev/gemini-api/docs/models/gemini-2.5-flash?hl=pt-br
 LIMITE_TOKENS_INPUT = 1048576
