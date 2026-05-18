@@ -2,6 +2,7 @@
 dados/**
 teste*.py
 *.png
+!documentacao/*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -211,4 +212,3 @@ marimo/_static/
 marimo/_lsp/
 __marimo__/
 
-!documentacao
