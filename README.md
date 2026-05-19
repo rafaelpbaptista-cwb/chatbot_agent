@@ -1,15 +1,15 @@
 # 1. chatbot_agent
 
-Projeto de um chatbot para auxiliar desenvolvedores a entender bibliotecas python desenvolvidas internamente por uma equipe, onde tais bibliiecas não estão disponíveis externamente via pypi ou outros repositórios.
-Esse cenário geralmente ocorre em empresas onde um equipe de desenvolmento cria soluções para atender a demanda interna. Novos membros da equipe podem ter dificuldades para entender essas bibliotecas já criadas. Para auxilia-los nesse processo de adpação, foi criado esse chatbot.
+Projeto de um chatbot para auxiliar desenvolvedores a entender bibliotecas python desenvolvidas internamente por uma equipe, onde tais bibliotecas não estão disponíveis externamente via pypi ou outros repositórios.
+Esse cenário geralmente ocorre em empresas onde uma equipe de desenvolvimento cria soluções para atender a demanda interna. Novos membros da equipe podem ter dificuldades para entender essas bibliotecas já criadas. Para auxiliá-los nesse processo de adaptação, foi criado esse chatbot.
 
-O chatbot utiliza o mecanismo de RAG, Retrieval Augmented Generation ou em portugês Geração Aumentada por Recuperação, para recuperação de informações, utilizando o banco de dados vetorial ChromaDB. Essa informação está relicionada as bibliotecas internas onde gostariamos de obter esclarecimentos. As informações obtidas são anexadas ao questionamento do usuário e dessa forma o chatbot consegue responder aos questionamentos do usuário.
+O chatbot utiliza o mecanismo de RAG, Retrieval Augmented Generation ou em português Geração Aumentada por Recuperação, para recuperação de informações, utilizando o banco de dados vetorial ChromaDB. Essa informação está relacionada às bibliotecas internas onde gostaríamos de obter esclarecimentos. As informações obtidas são anexadas ao questionamento do usuário e dessa forma o chatbot consegue responder aos questionamentos do usuário.
 
 A solução utiliza das seguintes tecnologias e ferramentas:
 - [UV](https://docs.astral.sh/uv/): gerenciamento das dependências e qualidade do código do projeto;
-- [Langraph](https://reference.langchain.com/python/langgraph): framework para auxiliar no gerenciamento do estado da aplicação e orquestração das etapas envolvidas na geração da resposta ao usuário;
+- [LangGraph](https://reference.langchain.com/python/langgraph): framework para auxiliar no gerenciamento do estado da aplicação e orquestração das etapas envolvidas na geração da resposta ao usuário;
 - [Painel](https://pypi.org/project/panel/): biblioteca para a geração da interface web para a interação com o chatbot.
-- [ChromaDB](https://github.com/chroma-core/**chroma**): banco de dados vetorial para armazenamento e recuperação das informações (RAG) relacionadas as bibliotecas internas.
+- [ChromaDB](https://github.com/chroma-core/chroma): banco de dados vetorial para armazenamento e recuperação das informações (RAG) relacionadas às bibliotecas internas.
 
 # 2. Preparação do ambiente
 
@@ -22,9 +22,9 @@ Segue passo a passo para a preparação do ambiente de execução:
 
 # 3. Detalhes da aplicação
 
-## 3.1. Fluxo langraph
+## 3.1. Fluxo LangGraph
 
-Nesta seção iremos descrrver as etapas contidas no fluxo langraph do chatbot.
+Nesta seção iremos descrever as etapas contidas no fluxo LangGraph do chatbot.
 Abaixo segue imagem demonstrando o fluxo langgraph implementado:
 
 ![Fluxo LangGraph](./documentacao/graph.png)
@@ -38,7 +38,7 @@ Detalharemos as etapas do fluxo principal do aplicativo.
 #### 3.1.1.1. Reescrita do questionamento do usuário (rewrite_question)
 
 Etapa de reescrita do questionamento do usuário para recuperação posterior de informações via RAG.
-Essa reescrita é necessário para manter o histórico da conversa já iniciada pelo usuário. Muitas vezes o usuário faz alguma referencia à mensagens escritas anteriormente. Para a recuperação eficiente de informações via RAG, às vezes é necessário reescever o questionamento do usuário para mantermos o contexto da conversa.
+Essa reescrita é necessária para manter o histórico da conversa já iniciada pelo usuário. Muitas vezes o usuário faz alguma referência a mensagens escritas anteriormente. Para a recuperação eficiente de informações via RAG, às vezes é necessário reescrever o questionamento do usuário para mantermos o contexto da conversa.
 Segue exemplo de reescrita:
 
 - Questionamento 1: Como realizar pesquisas na base de dados de histórico oficial?
@@ -48,7 +48,7 @@ Segue exemplo de reescrita:
 #### 3.1.1.2. Recuperação documentação HTML via RAG (retriever_html)
 
 Etapa de recuperação de documentos HTML de funções e classes que possam auxiliar na geração da resposta ao questionamento do usuário.
-Essa etapa utiliza a recuperação RAG na base de dados vetorial ChromeDB.
+Essa etapa utiliza a recuperação RAG na base de dados vetorial ChromaDB.
 Essa etapa utiliza a classe `MultiQueryRetriever` do pacote `langchain_classic.retrievers`. Essa classe cria, com a ajuda da LLM, variantes do questionamento inicial do usuário. Isso nos ajuda a melhorar a obtenção da informações via RAG.
 Segue exemplo da geração de perguntas variantes:
 
@@ -72,7 +72,7 @@ Mesma lógica da [avaliação dos documentos HTML](#313-avaliação-dos-document
 
 #### 3.1.1.6. Geração da resposta ao questionamento do usuário (generate)
 
-Estapa de geração da resposta ao questionamento do usuário baseado nos documentos recuperados nas etapas anteriores via RAG.
+Etapa de geração da resposta ao questionamento do usuário baseada nos documentos recuperados nas etapas anteriores via RAG.
 
 ### 3.1.2. Fluxos de tomadas de decisão
 
@@ -103,3 +103,70 @@ Para essa avaliação é usado o históricos de documentos HTML e códigos Pytho
 #### 3.1.2.2. [Recuperação código Python](#3114-recuperação-de-código-python-via-rag-retriever_python) vs [geração da resposta](#3116-geração-da-resposta-ao-questionamento-do-usuário-generate)
 
 Verifica se as documentações HTML recuperadas em [retriever_html](#3112-recuperação-documentação-html-via-rag-retriever_html) são suficientes para a geração da resposta ao questionamento do usuário.
+
+## 3.2. Diagrama de Classes
+
+Abaixo temos o diagrama de classes com as principais classes da aplicação e a relação entre elas:
+
+```mermaid
+classDiagram
+    direction BT
+
+    class Application {
+        +CompiledStateGraph app
+        +StateGraph workflow
+        +__init__(workflow: StateGraph) None
+        +__post_init__() None
+        +_add_conditional() None
+        +_add_nodes() None
+        +_add_nodes_sequence() None
+        +generate_image() None
+        +invoke(question: str) str
+    }
+
+    class LargeLanguageModel {
+        +RunnableSequence chain
+        +HumanMessagePromptTemplate human_prompt_template
+        +ChatGoogleGenerativeAI llm
+        +Optional~DocumentsGraderAnswer~ structured_output
+        +Optional~str~ system_instruction
+        +SystemMessagePromptTemplate system_prompt_template
+        +__init__(llm: ChatGoogleGenerativeAI, system_instruction: str, structured_output: DocumentsGraderAnswer) None
+        +__post_init__() None
+        +batch(inputs: list~dict~str, Document~~, config: RunnableConfig) list~Document~
+        +invoke() Document
+    }
+
+    class LargeLanguageModelHistory {
+        +chain
+        +__init__(llm: ChatGoogleGenerativeAI, system_instruction: str, structured_output: DocumentsGraderAnswer) None
+        +__post_init__() None
+    }
+
+    class QueryRetriever {
+        +Chroma client_vector_db
+        +MultiQueryRetriever multi_query_retrivier
+        +RetrieverOptions type_data_query
+        +__init__(client_vector_db: Chroma, type_data_query: RetrieverOptions) None
+        +__post_init__() None
+        +invoke(prompt: str) list~Document~
+    }
+
+    class RetrieverOptions {
+        <<enumeration>>
+        name
+    }
+
+    LargeLanguageModel <|-- LargeLanguageModelHistory
+    QueryRetriever --> RetrieverOptions : type_data_query
+```
+
+### 3.2.1. Descrição das Classes e Relacionamentos
+
+- **Application**: É a classe principal que representa a aplicação. Ela é responsável por orquestrar todo o fluxo definido pelo LangGraph (`StateGraph`). É nela que ocorre a configuração de todos os nós (etapas do fluxo), rotas condicionais e a compilação do grafo. Quando a aplicação é acionada, ela recebe a pergunta do usuário através do método `invoke` e navega pelos nós do grafo para gerar a resposta.
+
+- **LargeLanguageModel** e **LargeLanguageModelHistory**: A classe `LargeLanguageModel` é utilizada para interagir com o modelo de linguagem (LLM) para diversos propósitos isolados no fluxo (como avaliação de documentos - grader - e tomadas de decisão). A classe `LargeLanguageModelHistory` é uma extensão direta da primeira e acrescenta o comportamento de preservação e injeção do histórico de mensagens nas interações. Ambas são fundamentais e instanciadas ao longo de quase todas as etapas do fluxo principal do LangGraph detalhado na seção 3.1, atendendo a propósitos específicos através da variação da instrução de sistema (`system_instruction`).
+
+- **QueryRetriever**: Classe responsável por realizar a recuperação de contexto via banco de dados vetorial (RAG). Ela utiliza variantes da pergunta inicial para recuperar os documentos mais relevantes do `ChromaDB` (`client_vector_db`), que irão compor o contexto para o LLM.
+
+- **RetrieverOptions**: É um *Enum* consumido pela classe `QueryRetriever` para definir e especializar o tipo de dado que deve ser recuperado em cada busca. Ele possui as opções restritas `HTML` e `PYTHON`, direcionando o `QueryRetriever` para buscar nas etapas de "Recuperação documentação HTML" e "Recuperação de código Python", respectivamente.
