@@ -352,9 +352,9 @@ def decide_need_code(state: GraphState) -> bool:
 class Application:
     """Classe que representa a aplicação."""
 
-    workflow: StateGraph = field(default_factory=lambda: StateGraph(GraphState))
+    _workflow: StateGraph = field(default_factory=lambda: StateGraph(GraphState))
 
-    app: CompiledStateGraph = field(init=False)
+    _app: CompiledStateGraph = field(init=False)
 
     def __post_init__(self) -> None:
         """Inicializa propriedades do objeto."""
@@ -364,18 +364,18 @@ class Application:
         self._add_nodes_sequence()
         self._add_conditional()
 
-        self.app = self.workflow.compile()
+        self._app = self._workflow.compile()
 
     def _add_conditional(self) -> None:
         logger.info("Adicionando condições de rotas")
 
-        self.workflow.add_conditional_edges(
+        self._workflow.add_conditional_edges(
             GRADE_HTML_DOCUMENTS,
             decide_need_code,
             {True: RETRIEVER_PYTHON, False: GENERATE},
         )
 
-        self.workflow.add_conditional_edges(
+        self._workflow.add_conditional_edges(
             START,
             decide_need_documentation,
             {True: REWRITE_QUESTION, False: RELOAD_RAGS_MEMORY},
@@ -384,23 +384,23 @@ class Application:
     def _add_nodes(self) -> None:
         logger.info("Adicionando nodes ao graph")
 
-        self.workflow.add_node(RELOAD_RAGS_MEMORY, reload_rags_memory_node)
-        self.workflow.add_node(REWRITE_QUESTION, rewrite_question_rag_node)
-        self.workflow.add_node(RETRIEVER_HTML, retriever_html_node)
-        self.workflow.add_node(RETRIEVER_PYTHON, retriever_python_node)
-        self.workflow.add_node(GRADE_HTML_DOCUMENTS, grade_html_node)
-        self.workflow.add_node(GRADE_PYTHON_DOCUMENTS, grade_python_node)
-        self.workflow.add_node(GENERATE, generate_node)
+        self._workflow.add_node(RELOAD_RAGS_MEMORY, reload_rags_memory_node)
+        self._workflow.add_node(REWRITE_QUESTION, rewrite_question_rag_node)
+        self._workflow.add_node(RETRIEVER_HTML, retriever_html_node)
+        self._workflow.add_node(RETRIEVER_PYTHON, retriever_python_node)
+        self._workflow.add_node(GRADE_HTML_DOCUMENTS, grade_html_node)
+        self._workflow.add_node(GRADE_PYTHON_DOCUMENTS, grade_python_node)
+        self._workflow.add_node(GENERATE, generate_node)
 
     def _add_nodes_sequence(self) -> None:
         logger.info("Adicionando sequencia do nodes do graph")
 
-        self.workflow.add_edge(REWRITE_QUESTION, RETRIEVER_HTML)
-        self.workflow.add_edge(RETRIEVER_HTML, GRADE_HTML_DOCUMENTS)
-        self.workflow.add_edge(RETRIEVER_PYTHON, GRADE_PYTHON_DOCUMENTS)
-        self.workflow.add_edge(GRADE_PYTHON_DOCUMENTS, GENERATE)
-        self.workflow.add_edge(RELOAD_RAGS_MEMORY, GENERATE)
-        self.workflow.add_edge(GENERATE, END)
+        self._workflow.add_edge(REWRITE_QUESTION, RETRIEVER_HTML)
+        self._workflow.add_edge(RETRIEVER_HTML, GRADE_HTML_DOCUMENTS)
+        self._workflow.add_edge(RETRIEVER_PYTHON, GRADE_PYTHON_DOCUMENTS)
+        self._workflow.add_edge(GRADE_PYTHON_DOCUMENTS, GENERATE)
+        self._workflow.add_edge(RELOAD_RAGS_MEMORY, GENERATE)
+        self._workflow.add_edge(GENERATE, END)
 
     def generate_image(self) -> None:
         """Gera uma imagem do graph do aplicação.
@@ -411,7 +411,7 @@ class Application:
         logger.info("Gerando imagem do graph")
 
         with Path("graph.png").open("wb") as f:
-            f.write(self.app.get_graph().draw_mermaid_png())
+            f.write(self._app.get_graph().draw_mermaid_png())
 
     def invoke(self, question: str) -> str:
         """Responde ao questionamento do usuário.
@@ -425,4 +425,4 @@ class Application:
             str:
                 Resposta ao questionamento do usuário
         """
-        return self.app.invoke(input={"question": question})["response"]
+        return self._app.invoke(input={"question": question})["response"]

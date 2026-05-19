@@ -1,0 +1,7 @@
+digraph "packages" {
+rankdir=BT
+charset="utf-8"
+"chatbot_agent.chain.create_chains" [color="black", label=<chatbot_agent.chain.create_chains>, shape="box", style="solid"];
+"chatbot_agent.graph" [color="black", label=<chatbot_agent.graph>, shape="box", style="solid"];
+"chatbot_agent.graph" -> "chatbot_agent.chain.create_chains" [arrowhead="open", arrowtail="none"];
+}

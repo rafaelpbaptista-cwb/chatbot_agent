@@ -84,7 +84,7 @@ Abaixo segue um pseudo-código de uso do método citado:
 
 ```python
 from langgraph.graph import StateGraph
-
+****
 workflow = StateGraph(<APP_STATE>)
 
 workflow.add_conditional_edges(
@@ -104,66 +104,85 @@ Para essa avaliação é usado o históricos de documentos HTML e códigos Pytho
 
 Verifica se as documentações HTML recuperadas em [retriever_html](#3112-recuperação-documentação-html-via-rag-retriever_html) são suficientes para a geração da resposta ao questionamento do usuário.
 
-## 3.2. Diagrama de Classes
+## 3.2. Detalhamento técnico
 
-Abaixo temos o diagrama de classes com as principais classes da aplicação e a relação entre elas:
+### 3.2.1. Diagrama de classes
+
+Segue diagrama de classes com as principais classes da aplicação e a relação entre elas:
 
 ```mermaid
 classDiagram
     direction BT
 
     class Application {
-        +CompiledStateGraph app
-        +StateGraph workflow
-        +__init__(workflow: StateGraph) None
-        +__post_init__() None
-        +_add_conditional() None
-        +_add_nodes() None
-        +_add_nodes_sequence() None
+        <<dataclass>>
+        -CompiledStateGraph app
+        -StateGraph workflow
+        -_add_conditional() None
+        -_add_nodes() None
+        -_add_nodes_sequence() None
         +generate_image() None
         +invoke(question: str) str
     }
 
+    class DocumentsGraderAnswer {
+        <<pydantic>>
+        +bool answer
+        +str explanation
+        +dict analyzed_document
+    }
+
+    class GraphState {
+        <<pydantic>>
+        +str question
+        +str rewrited_question
+        +str response
+        +list~Document~ documents
+        +list~Document~ codes
+        +list~BaseMessage~ history
+    }
+
     class LargeLanguageModel {
+        <<dataclass>>
         +RunnableSequence chain
         +HumanMessagePromptTemplate human_prompt_template
         +ChatGoogleGenerativeAI llm
         +Optional~DocumentsGraderAnswer~ structured_output
         +Optional~str~ system_instruction
         +SystemMessagePromptTemplate system_prompt_template
-        +__init__(llm: ChatGoogleGenerativeAI, system_instruction: str, structured_output: DocumentsGraderAnswer) None
-        +__post_init__() None
         +batch(inputs: list~dict~str, Document~~, config: RunnableConfig) list~Document~
-        +invoke() Document
+        +invoke(**kwargs: str) Document
     }
 
     class LargeLanguageModelHistory {
-        +chain
-        +__init__(llm: ChatGoogleGenerativeAI, system_instruction: str, structured_output: DocumentsGraderAnswer) None
-        +__post_init__() None
+        <<dataclass>>
     }
 
     class QueryRetriever {
+        <<dataclass>>
         +Chroma client_vector_db
         +MultiQueryRetriever multi_query_retrivier
         +RetrieverOptions type_data_query
-        +__init__(client_vector_db: Chroma, type_data_query: RetrieverOptions) None
-        +__post_init__() None
         +invoke(prompt: str) list~Document~
     }
 
     class RetrieverOptions {
         <<enumeration>>
-        name
+        HTML
+        PYTHON
     }
 
+    Application --> GraphState : workflow / app
+    LargeLanguageModel --> DocumentsGraderAnswer : structured_output
     LargeLanguageModel <|-- LargeLanguageModelHistory
     QueryRetriever --> RetrieverOptions : type_data_query
 ```
 
-### 3.2.1. Descrição das Classes e Relacionamentos
+### 3.2.2. Descrição das Classes e Relacionamentos
 
-- **Application**: É a classe principal que representa a aplicação. Ela é responsável por orquestrar todo o fluxo definido pelo LangGraph (`StateGraph`). É nela que ocorre a configuração de todos os nós (etapas do fluxo), rotas condicionais e a compilação do grafo. Quando a aplicação é acionada, ela recebe a pergunta do usuário através do método `invoke` e navega pelos nós do grafo para gerar a resposta.
+- **Application**: É a classe principal que representa a aplicação. Ela é responsável por orquestrar todo o fluxo definido pelo LangGraph (`StateGraph`). É nela que ocorre a configuração de todos os nós detalhados na seção [fluxo principal](#311-fluxo-principal) e [fluxo de tomadas de decisão](#312-fluxos-de-tomadas-de-decisão). A classe possui dois método públicos, sendo eles:
+  - `invoke`: Método que recebe o questinamento do usuário e que executa todo o fluxo definido na aplicação através da propriedade privada `app`.
+  - `generate_image`: Método que gera uma imagem demonsrando o fluxo definido no LangGraph.
 
 - **LargeLanguageModel** e **LargeLanguageModelHistory**: A classe `LargeLanguageModel` é utilizada para interagir com o modelo de linguagem (LLM) para diversos propósitos isolados no fluxo (como avaliação de documentos - grader - e tomadas de decisão). A classe `LargeLanguageModelHistory` é uma extensão direta da primeira e acrescenta o comportamento de preservação e injeção do histórico de mensagens nas interações. Ambas são fundamentais e instanciadas ao longo de quase todas as etapas do fluxo principal do LangGraph detalhado na seção 3.1, atendendo a propósitos específicos através da variação da instrução de sistema (`system_instruction`).
 
