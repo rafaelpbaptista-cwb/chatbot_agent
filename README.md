@@ -1,90 +1,88 @@
 # 1. chatbot_agent
 
-Projeto de um chatbot para auxiliar desenvolvedores a entender bibliotecas python desenvolvidas internamente por uma equipe, onde tais bibliotecas não estão disponíveis externamente via pypi ou outros repositórios.
-Esse cenário geralmente ocorre em empresas onde uma equipe de desenvolvimento cria soluções para atender a demanda interna. Novos membros da equipe podem ter dificuldades para entender essas bibliotecas já criadas. Para auxiliá-los nesse processo de adaptação, foi criado esse chatbot.
+Este projeto é um chatbot desenvolvido para ajudar programadores a entender bibliotecas Python criadas internamente por uma equipe, que não estão disponíveis em repositórios públicos como o PyPI.
 
-O chatbot utiliza o mecanismo de RAG, Retrieval Augmented Generation ou em português Geração Aumentada por Recuperação, para recuperação de informações, utilizando o banco de dados vetorial ChromaDB. Essa informação está relacionada às bibliotecas internas onde gostaríamos de obter esclarecimentos. As informações obtidas são anexadas ao questionamento do usuário e dessa forma o chatbot consegue responder aos questionamentos do usuário.
+Esse cenário é comum em empresas que desenvolvem soluções próprias para demandas internas. Novos membros podem ter dificuldades para se familiarizar com essas bibliotecas. O chatbot foi criado para ajudar nessa adaptação.
 
-A solução utiliza das seguintes tecnologias e ferramentas:
-- [UV](https://docs.astral.sh/uv/): gerenciamento das dependências e qualidade do código do projeto;
-- [LangGraph](https://reference.langchain.com/python/langgraph): framework para auxiliar no gerenciamento do estado da aplicação e orquestração das etapas envolvidas na geração da resposta ao usuário;
-- [Painel](https://pypi.org/project/panel/): biblioteca para a geração da interface web para a interação com o chatbot.
-- [ChromaDB](https://github.com/chroma-core/chroma): banco de dados vetorial para armazenamento e recuperação das informações (RAG) relacionadas às bibliotecas internas.
+O sistema usa RAG (*Retrieval-Augmented Generation* ou Geração Aumentada por Recuperação) para buscar informações no banco de dados vetorial ChromaDB. Essas informações, que são o código e a documentação das bibliotecas internas, são anexadas à pergunta do usuário, dando o contexto necessário para que o chatbot consiga responder.
+
+Tecnologias e ferramentas utilizadas:
+- [UV](https://docs.astral.sh/uv/): gerenciamento de dependências e qualidade do código do projeto;
+- [LangGraph](https://reference.langchain.com/python/langgraph): framework para gerenciar o estado da aplicação e orquestrar as etapas de geração da resposta;
+- [Panel](https://pypi.org/project/panel/): biblioteca para criar a interface web do chatbot;
+- [ChromaDB](https://github.com/chroma-core/chroma): banco de dados vetorial para armazenar e buscar as informações (RAG) sobre as bibliotecas internas.
 
 # 2. Preparação do ambiente
 
-Segue passo a passo para a preparação do ambiente de execução:
+Passo a passo para preparar o ambiente:
 
-- Instalar **python** usando Windows Store ou seguindo as instruções de [python.org](https://www.python.org/downloads/)
-- Instalar **uv** através do comando `pip install uv`
-- Clonar repositório do chatbot através do comando `git clone https://github.com/rafaelpbaptista-cwb/chatbot_agent.git`
-- No diretório do repositório, instalar as dependências do projeto usando o comando `uv sync`
+- Instale o **Python** pela Windows Store ou seguindo as instruções em [python.org](https://www.python.org/downloads/);
+- Instale o **uv** rodando `pip install uv`;
+- Clone o repositório do projeto com `git clone https://github.com/rafaelpbaptista-cwb/chatbot_agent.git`;
+- Entre no diretório do repositório e instale as dependências rodando `uv sync`.
 
 # 3. Detalhes da aplicação
 
 ## 3.1. Fluxo LangGraph
 
-Nesta seção iremos descrever as etapas contidas no fluxo LangGraph do chatbot.
-Abaixo segue imagem demonstrando o fluxo langgraph implementado:
+Esta seção descreve o fluxo LangGraph do chatbot. A imagem abaixo mostra a implementação:
 
 ![Fluxo LangGraph](./documentacao/graph.png)
 
-Iremos detalhar cada etapa.
+Detalhando as etapas:
 
 ### 3.1.1. Fluxo principal
 
-Detalharemos as etapas do fluxo principal do aplicativo. 
+Etapas principais do aplicativo.
 
 #### 3.1.1.1. Reescrita do questionamento do usuário (rewrite_question)
 
-Etapa de reescrita do questionamento do usuário para recuperação posterior de informações via RAG.
-Essa reescrita é necessária para manter o histórico da conversa já iniciada pelo usuário. Muitas vezes o usuário faz alguma referência a mensagens escritas anteriormente. Para a recuperação eficiente de informações via RAG, às vezes é necessário reescrever o questionamento do usuário para mantermos o contexto da conversa.
-Segue exemplo de reescrita:
+Esta etapa reescreve a pergunta do usuário para melhorar a busca de informações no RAG.
+Isso é necessário para manter o contexto da conversa, já que o usuário frequentemente faz referência a mensagens anteriores. Para o RAG funcionar bem, a pergunta precisa conter todo o contexto.
 
-- Questionamento 1: Como realizar pesquisas na base de dados de histórico oficial?
-- Questionamento 2: Quero que vc faça uma pesquisa na sua base de conhecimento, com dados atualizados, para descobrir se a classe mencionada possui informações de preço PLD
-- Reescrita questionamento 2: Como acessar dados de preço de energia PLD usando a classe `MongoHistoricoOficial` da biblioteca `infra_copel`?
+Exemplo:
+- **Questionamento 1:** Como realizar pesquisas na base de dados de histórico oficial?
+- **Questionamento 2:** Quero que vc faça uma pesquisa na sua base de conhecimento, com dados atualizados, para descobrir se a classe mencionada possui informações de preço PLD.
+- **Reescrita do questionamento 2:** Como acessar dados de preço de energia PLD usando a classe `MongoHistoricoOficial` da biblioteca `infra_copel`?
 
-#### 3.1.1.2. Recuperação documentação HTML via RAG (retriever_html)
+#### 3.1.1.2. Recuperação de documentação HTML via RAG (retriever_html)
 
-Etapa de recuperação de documentos HTML de funções e classes que possam auxiliar na geração da resposta ao questionamento do usuário.
-Essa etapa utiliza a recuperação RAG na base de dados vetorial ChromaDB.
-Essa etapa utiliza a classe `MultiQueryRetriever` do pacote `langchain_classic.retrievers`. Essa classe cria, com a ajuda da LLM, variantes do questionamento inicial do usuário. Isso nos ajuda a melhorar a obtenção da informações via RAG.
-Segue exemplo da geração de perguntas variantes:
+O sistema busca documentos HTML de funções e classes que possam ajudar a responder a pergunta.
+A busca acontece no ChromaDB usando RAG. A classe `MultiQueryRetriever` (de `langchain_classic.retrievers`), junto com uma LLM, gera variações da pergunta inicial. Isso ajuda a trazer mais documentos relevantes.
 
-- Questionamento usuário: Como realizar pesquisas na base de dados de histórico oficial?
-- Perguntas variantes:
+Exemplo:
+- **Questionamento do usuário:** Como realizar pesquisas na base de dados de histórico oficial?
+- **Perguntas variantes:**
   - Quais são os métodos para consultar registros históricos oficiais?
   - Como posso encontrar informações no repositório de dados históricos oficiais?
   - Quais estratégias de pesquisa devo usar para navegar nos arquivos históricos oficiais?
 
 #### 3.1.1.3. Avaliação dos documentos HTML recuperados (grader_html_documents)
 
-Etapa que avalia se os documentos HTML recuperados via RAG são relevantes para a resposta ao questionamento do usuário.
+Avalia se os documentos HTML recuperados via RAG realmente servem para responder a pergunta.
 
 #### 3.1.1.4. Recuperação de código Python via RAG (retriever_python)
 
-Mesma lógica da [recuperação de documentos HTML](#312-recuperação-documentação-html-via-rag-retriever_html) mas focada em códigos/scripts Python.
+Mesma lógica da [recuperação de documentação HTML](#3112-recuperação-de-documentação-html-via-rag-retriever_html), mas focada em scripts e arquivos Python.
 
 #### 3.1.1.5. Avaliação dos códigos Python recuperados (grader_python_documents)
 
-Mesma lógica da [avaliação dos documentos HTML](#313-avaliação-dos-documentos-html-recuperados-grader_html_documents) mas focada em códigos/scripts Python.
+Mesma lógica da [avaliação de HTML](#3113-avaliação-dos-documentos-html-recuperados-grader_html_documents), mas para os códigos Python.
 
-#### 3.1.1.6. Geração da resposta ao questionamento do usuário (generate)
+#### 3.1.1.6. Geração da resposta (generate)
 
-Etapa de geração da resposta ao questionamento do usuário baseada nos documentos recuperados nas etapas anteriores via RAG.
+Gera a resposta final usando os documentos e códigos filtrados nas etapas anteriores.
 
 ### 3.1.2. Fluxos de tomadas de decisão
 
-Existe alguns pontos de tomada de decisão para avaliar quais etapas do fluxo principal serão executados.
+Existem pontos de decisão que definem quais etapas do fluxo principal vão rodar.
+Eles são inseridos no LangGraph pelo método `add_conditional_edges` da classe `langgraph.graph.StateGraph`.
 
-Esses pontos de tomada de decisão dentro do langgraph são inseridos através do método `add_conditional_edges` da classe `langgraph.graph.StateGraph`.
-
-Abaixo segue um pseudo-código de uso do método citado:
+Exemplo:
 
 ```python
 from langgraph.graph import StateGraph
-****
+# ...
 workflow = StateGraph(<APP_STATE>)
 
 workflow.add_conditional_edges(
@@ -94,21 +92,19 @@ workflow.add_conditional_edges(
     )
 ```
 
-#### 3.1.2.1. [Rescrita do questionamento do usuário](#311-reescrita-do-questionamento-do-usuario-rewrite_question) vs Recuperação do histórico documentos RAG
+#### 3.1.2.1. Reescrita da pergunta vs. Uso do histórico do RAG
 
-Verifica se os documentos recuperados anteriormente via RAG, para geração das respostas anteriores, são suficientes para a geração da resposta do questionamento atual do usuário.
+Avalia se os documentos recuperados antes (no histórico do RAG) já são suficientes para responder a pergunta atual, evitando uma nova busca. Utiliza o histórico de HTML, de códigos Python e de respostas.
 
-Para essa avaliação é usado o históricos de documentos HTML e códigos Python recuperados via RAG e o histórico de respostas.
+#### 3.1.2.2. Recuperação de código Python vs. Geração da resposta
 
-#### 3.1.2.2. [Recuperação código Python](#3114-recuperação-de-código-python-via-rag-retriever_python) vs [geração da resposta](#3116-geração-da-resposta-ao-questionamento-do-usuário-generate)
-
-Verifica se as documentações HTML recuperadas em [retriever_html](#3112-recuperação-documentação-html-via-rag-retriever_html) são suficientes para a geração da resposta ao questionamento do usuário.
+Verifica se a documentação HTML recuperada em `retriever_html` já basta para responder ao usuário. Se sim, pula a busca por códigos Python e vai direto gerar a resposta.
 
 ## 3.2. Detalhamento técnico
 
 ### 3.2.1. Diagrama de classes
 
-Segue diagrama de classes com as principais classes da aplicação e a relação entre elas:
+O diagrama abaixo mostra as principais classes e como elas se relacionam:
 
 ```mermaid
 classDiagram
@@ -172,20 +168,27 @@ classDiagram
         PYTHON
     }
 
+    class chat_ui {
+        +get_response(contents: str, _: TextInput, __: FileInput) str
+    }
+
     Application --> GraphState : workflow / app
     LargeLanguageModel --> DocumentsGraderAnswer : structured_output
     LargeLanguageModel <|-- LargeLanguageModelHistory
     QueryRetriever --> RetrieverOptions : type_data_query
+    chat_ui --> Application : chat_bot
 ```
 
-### 3.2.2. Descrição das Classes e Relacionamentos
+### 3.2.2. Descrição das classes e relacionamentos
 
-- **Application**: É a classe principal que representa a aplicação. Ela é responsável por orquestrar todo o fluxo definido pelo LangGraph (`StateGraph`). É nela que ocorre a configuração de todos os nós detalhados na seção [fluxo principal](#311-fluxo-principal) e [fluxo de tomadas de decisão](#312-fluxos-de-tomadas-de-decisão). A classe possui dois método públicos, sendo eles:
-  - `invoke`: Método que recebe o questinamento do usuário e que executa todo o fluxo definido na aplicação através da propriedade privada `app`.
-  - `generate_image`: Método que gera uma imagem demonsrando o fluxo definido no LangGraph.
+- **chat_ui**: No script `chatbot-ui.py`, é a interface da aplicação. É o ponto de entrada do programa que interage com o usuário e aciona a classe `Application`.
+  
+- **Application**: Classe central que orquestra todo o fluxo do LangGraph (`StateGraph`). Configura os nós do fluxo principal e das tomadas de decisão. Tem dois métodos públicos:
+  - `invoke`: Recebe a pergunta e executa o fluxo da aplicação na propriedade `app`.
+  - `generate_image`: Gera uma imagem ilustrando o grafo do LangGraph.
 
-- **LargeLanguageModel** e **LargeLanguageModelHistory**: A classe `LargeLanguageModel` é utilizada para interagir com o modelo de linguagem (LLM) para diversos propósitos isolados no fluxo (como avaliação de documentos - grader - e tomadas de decisão). A classe `LargeLanguageModelHistory` é uma extensão direta da primeira e acrescenta o comportamento de preservação e injeção do histórico de mensagens nas interações. Ambas são fundamentais e instanciadas ao longo de quase todas as etapas do fluxo principal do LangGraph detalhado na seção 3.1, atendendo a propósitos específicos através da variação da instrução de sistema (`system_instruction`).
+- **LargeLanguageModel** e **LargeLanguageModelHistory**: A `LargeLanguageModel` interage com a LLM para tarefas como avaliar documentos ou decidir fluxos. A `LargeLanguageModelHistory` estende ela, adicionando a capacidade de injetar o histórico de mensagens. Ambas aparecem em quase todas as etapas do fluxo principal, mudando apenas a instrução de sistema (`system_instruction`).
 
-- **QueryRetriever**: Classe responsável por realizar a recuperação de contexto via banco de dados vetorial (RAG). Ela utiliza variantes da pergunta inicial para recuperar os documentos mais relevantes do `ChromaDB` (`client_vector_db`), que irão compor o contexto para o LLM.
+- **QueryRetriever**: Faz a recuperação de contexto no ChromaDB (RAG). Usa variações da pergunta para buscar os documentos mais relevantes, montando o contexto para a LLM.
 
-- **RetrieverOptions**: É um *Enum* consumido pela classe `QueryRetriever` para definir e especializar o tipo de dado que deve ser recuperado em cada busca. Ele possui as opções restritas `HTML` e `PYTHON`, direcionando o `QueryRetriever` para buscar nas etapas de "Recuperação documentação HTML" e "Recuperação de código Python", respectivamente.
+- **RetrieverOptions**: Um *Enum* usado pela `QueryRetriever` para definir o que vai ser buscado. Tem as opções `HTML` e `PYTHON` para guiar a busca nas respectivas etapas.
